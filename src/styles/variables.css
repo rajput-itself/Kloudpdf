@@ -1,0 +1,71 @@
+:root {
+  /* Colors */
+  --color-primary: #1a73e8;
+  --color-primary-hover: #1557b0;
+  --color-primary-active: #174ea6;
+  --color-primary-light: #e8f0fe;
+  --color-primary-focus-ring: rgba(26, 115, 232, 0.35);
+
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f8f9fa;
+  --color-bg-card: #ffffff;
+  --color-bg-card-hover: #fcfdfe;
+
+  --color-text-main: #202124;
+  --color-text-secondary: #5f6368;
+  --color-text-muted: #80868b;
+  --color-text-inverse: #ffffff;
+
+  --color-border: #dadce0;
+  --color-border-subtle: #e8eaed;
+  --color-border-hover: #bdc1c6;
+  --color-border-active: #1a73e8;
+
+  --color-success: #137333;
+  --color-success-bg: #e6f4ea;
+  --color-danger: #d93025;
+  --color-danger-bg: #fce8e6;
+  --color-warning: #ea8600;
+  --color-warning-bg: #fef7e0;
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Font Sizes */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 2rem;      /* 32px */
+  --text-4xl: 2.5rem;    /* 40px */
+
+  /* Spacing */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.25rem;  /* 20px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-10: 2.5rem;  /* 40px */
+  --space-12: 3rem;    /* 48px */
+  --space-16: 4rem;    /* 64px */
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Shadows (subtle, non-decorative) */
+  --shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.08);
+  --shadow-md: 0 2px 6px rgba(60, 64, 67, 0.12);
+  --shadow-lg: 0 4px 12px rgba(60, 64, 67, 0.15);
+
+  /* Container */
+  --max-width: 1200px;
+  --header-height: 64px;
+}
