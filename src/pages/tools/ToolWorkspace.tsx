@@ -11,7 +11,13 @@ import {
   EyeOff,
   AlertCircle,
   FileImage,
+  Code,
+  Table as TableIcon,
+  Presentation,
+  Check,
+  Info,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { ToolDefinition, ProcessingState, ProcessedResult, PDFPageInfo } from '../../types';
 import { FileUpload } from '../../components/FileUpload/FileUpload';
 import { PDFPageThumbnail } from '../../components/PDFPreview/PDFPageThumbnail';
@@ -31,12 +37,48 @@ import { addWatermarkToPdf } from '../../services/pdf/watermark';
 import { addPageNumbersToPdf, PageNumberPosition } from '../../services/pdf/pageNumbers';
 import { protectPdfFile } from '../../services/pdf/protect';
 
+// New conversion services
+import { convertPdfToImages } from '../../services/conversion/pdfToImages';
+import { convertHtmlToPdf, HtmlPageSize, HtmlOrientation, sanitizeHtml } from '../../services/conversion/htmlToPdf';
+import { convertWordToPdf, renderDocxPreview } from '../../services/conversion/wordToPdf';
+import { convertExcelToPdf, parseExcelWorkbook, getSheetHtmlTable } from '../../services/conversion/excelToPdf';
+import { convertPowerPointToPdf, inspectPptx, PptxInspectionResult } from '../../services/conversion/powerpointToPdf';
+
 import './ToolWorkspace.css';
 
 interface ToolWorkspaceProps {
   tool: ToolDefinition;
   onBack: () => void;
 }
+
+const DEFAULT_SAMPLE_HTML = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 12px;">
+  <div style="border-bottom: 2px solid #1a73e8; padding-bottom: 12px; margin-bottom: 20px;">
+    <h1 style="color: #202124; margin: 0 0 6px 0; font-size: 24px;">KloudPDF Document</h1>
+    <p style="color: #5f6368; margin: 0; font-size: 13px;">PDF tools. Made simple.</p>
+  </div>
+  <h2 style="color: #202124; font-size: 17px; margin-top: 16px;">Browser-Native Conversion</h2>
+  <p style="color: #3c4043; line-height: 1.6; font-size: 14px;">
+    This document was converted directly inside your web browser. No external servers, third-party APIs, or cloud backends were involved.
+  </p>
+  <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
+    <thead>
+      <tr style="background-color: #f1f3f4; text-align: left;">
+        <th style="padding: 8px 12px; border: 1px solid #dadce0;">Feature</th>
+        <th style="padding: 8px 12px; border: 1px solid #dadce0;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #dadce0;">100% Client-Side</td>
+        <td style="padding: 8px 12px; border: 1px solid #dadce0; color: #1e8e3e; font-weight: 600;">Active</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #dadce0;">Zero Server Transmission</td>
+        <td style="padding: 8px 12px; border: 1px solid #dadce0; color: #1e8e3e; font-weight: 600;">Guaranteed</td>
+      </tr>
+    </tbody>
+  </table>
+</div>`;
 
 export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) => {
   const [processingState, setProcessingState] = useState<ProcessingState>('idle');
@@ -58,6 +100,36 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
   // JPG to PDF options
   const [jpgOrientation, setJpgOrientation] = useState<'portrait' | 'landscape' | 'fit'>('portrait');
   const [jpgMargin, setJpgMargin] = useState<number>(20);
+
+  // PDF to PNG options
+  const [pngScale, setPngScale] = useState<number>(2); // 1, 1.5, 2
+
+  // PDF to WebP options
+  const [webpQuality, setWebpQuality] = useState<number>(0.85); // 0.7, 0.85, 0.95
+
+  // HTML to PDF options
+  const [htmlInputMode, setHtmlInputMode] = useState<'file' | 'code'>('file');
+  const [htmlCode, setHtmlCode] = useState<string>(DEFAULT_SAMPLE_HTML);
+  const [htmlPageSize, setHtmlPageSize] = useState<HtmlPageSize>('a4');
+  const [htmlOrientation, setHtmlOrientation] = useState<HtmlOrientation>('portrait');
+  const [htmlMargin, setHtmlMargin] = useState<number>(20);
+
+  // Word to PDF options & preview
+  const [wordOrientation, setWordOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [wordMargin, setWordMargin] = useState<number>(20);
+  const wordPreviewRef = useRef<HTMLDivElement>(null);
+
+  // Excel to PDF options & preview
+  const [excelWorkbook, setExcelWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [excelSheetNames, setExcelSheetNames] = useState<string[]>([]);
+  const [selectedSheets, setSelectedSheets] = useState<string[]>([]);
+  const [activePreviewSheet, setActivePreviewSheet] = useState<string>('');
+  const [excelOrientation, setExcelOrientation] = useState<'portrait' | 'landscape'>('landscape');
+  const [excelPageSize, setExcelPageSize] = useState<'a4' | 'letter'>('a4');
+  const [excelFitToWidth, setExcelFitToWidth] = useState<boolean>(true);
+
+  // PowerPoint to PDF options & inspection
+  const [pptxInspection, setPptxInspection] = useState<PptxInspectionResult | null>(null);
 
   // Watermark options
   const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
@@ -98,7 +170,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
 
       const initialPages: PDFPageInfo[] = [];
       for (let i = 1; i <= doc.numPages; i++) {
-        // By default, for extract/split/remove, selected flag can represent intent
         initialPages.push({
           pageNumber: i,
           rotation: 0,
@@ -130,10 +201,65 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
       setFiles([single]);
       setProcessingState('configured');
 
-      if (single.name.toLowerCase().endsWith('.pdf')) {
+      const lowerName = single.name.toLowerCase();
+
+      // PDF based tools
+      if (lowerName.endsWith('.pdf')) {
         await loadSinglePdfDoc(single);
       }
+      // Word (.docx)
+      else if (lowerName.endsWith('.docx')) {
+        setTimeout(async () => {
+          if (wordPreviewRef.current) {
+            try {
+              await renderDocxPreview(single, wordPreviewRef.current);
+            } catch (err) {
+              console.warn('Word preview render warning:', err);
+            }
+          }
+        }, 100);
+      }
+      // Excel (.xlsx, .xls, .csv)
+      else if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')) {
+        try {
+          const info = await parseExcelWorkbook(single);
+          setExcelWorkbook(info.workbook);
+          setExcelSheetNames(info.sheetNames);
+          setSelectedSheets(info.sheetNames);
+          setActivePreviewSheet(info.sheetNames[0] || '');
+        } catch (err) {
+          console.error('Failed to parse Excel file:', err);
+          setErrorMessage('Could not read spreadsheet data. Please ensure it is a valid Excel or CSV file.');
+        }
+      }
+      // PowerPoint (.pptx)
+      else if (lowerName.endsWith('.pptx')) {
+        try {
+          const info = await inspectPptx(single);
+          setPptxInspection(info);
+        } catch (err) {
+          console.error('Failed to inspect PowerPoint file:', err);
+          setErrorMessage('Could not parse PowerPoint slides. Please ensure the file is an uncorrupted .pptx presentation.');
+        }
+      }
+      // HTML (.html, .htm)
+      else if (lowerName.endsWith('.html') || lowerName.endsWith('.htm')) {
+        try {
+          const text = await single.text();
+          setHtmlCode(text);
+          setHtmlInputMode('file');
+        } catch (err) {
+          console.error('Failed to read HTML file:', err);
+          setErrorMessage('Could not read HTML file.');
+        }
+      }
     }
+  };
+
+  const handleStartWithHtmlCode = () => {
+    setFiles([new File([htmlCode], 'custom_page.html', { type: 'text/html' })]);
+    setHtmlInputMode('code');
+    setProcessingState('configured');
   };
 
   const handleAddMoreFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,6 +319,20 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     );
   };
 
+  const handleSelectAllPages = (selectAll: boolean) => {
+    setPages((prev) => prev.map((p) => ({ ...p, selected: selectAll })));
+  };
+
+  const handleToggleExcelSheet = (sheetName: string) => {
+    setSelectedSheets((prev) => {
+      if (prev.includes(sheetName)) {
+        if (prev.length <= 1) return prev; // Keep at least one
+        return prev.filter((s) => s !== sheetName);
+      }
+      return [...prev, sheetName];
+    });
+  };
+
   const handleReset = () => {
     if (pdfDoc) {
       pdfDoc.destroy();
@@ -208,16 +348,21 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     setProgressDetail(undefined);
     setProtectPassword('');
     setProtectConfirm('');
+    setExcelWorkbook(null);
+    setExcelSheetNames([]);
+    setSelectedSheets([]);
+    setActivePreviewSheet('');
+    setPptxInspection(null);
   };
 
-  // Execute PDF action
+  // Execute PDF / Conversion action
   const handleExecute = async () => {
-    if (files.length === 0) return;
+    if (files.length === 0 && tool.id !== 'html-to-pdf') return;
     setErrorMessage(null);
     setProcessingState('processing');
 
     try {
-      const primaryFile = files[0]!;
+      const primaryFile = files[0] || new File([htmlCode], 'document.html', { type: 'text/html' });
       const baseName = primaryFile.name.replace(/\.[^/.]+$/, '');
 
       switch (tool.id) {
@@ -248,7 +393,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
               onProgress: (cur, tot) => setProgressDetail(`Exporting page ${cur} of ${tot}`),
             });
           } else {
-            // Split selected pages
             const selectedIndices = pages
               .filter((p) => p.selected)
               .map((p) => p.pageNumber - 1);
@@ -302,7 +446,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
 
         case 'remove-pages': {
           setStatusText('Removing pages from PDF...');
-          // Selected pages are the ones to KEEP, or unselected ones to REMOVE
           const keepIndices = pages
             .filter((p) => p.selected)
             .map((p) => p.pageNumber - 1);
@@ -365,6 +508,103 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
           setResult({
             blob,
             filename,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'pdf-to-png': {
+          setStatusText('Rendering PDF pages to PNG...');
+          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
+          const conversionResult = await convertPdfToImages(primaryFile, {
+            format: 'png',
+            scale: pngScale,
+            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
+            onProgress: (cur, tot) => setProgressDetail(`Converting page ${cur} of ${tot} to PNG`),
+          });
+          setResult({
+            blob: conversionResult.zipBlob || conversionResult.items[0]!.blob,
+            filename: conversionResult.zipFilename || conversionResult.items[0]!.filename,
+            downloadUrl: '',
+            imageItems: conversionResult.items,
+          });
+          break;
+        }
+
+        case 'pdf-to-webp': {
+          setStatusText('Compressing PDF pages to WebP...');
+          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
+          const conversionResult = await convertPdfToImages(primaryFile, {
+            format: 'webp',
+            quality: webpQuality,
+            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
+            onProgress: (cur, tot) => setProgressDetail(`Compressing page ${cur} of ${tot} to WebP`),
+          });
+          setResult({
+            blob: conversionResult.zipBlob || conversionResult.items[0]!.blob,
+            filename: conversionResult.zipFilename || conversionResult.items[0]!.filename,
+            downloadUrl: '',
+            imageItems: conversionResult.items,
+          });
+          break;
+        }
+
+        case 'html-to-pdf': {
+          setStatusText('Rendering HTML to PDF...');
+          const pdfBlob = await convertHtmlToPdf(htmlCode, {
+            pageSize: htmlPageSize,
+            orientation: htmlOrientation,
+            margin: htmlMargin,
+            onProgress: (cur, tot) => setProgressDetail(`Rendering document slice ${cur} of ${tot}`),
+          });
+          setResult({
+            blob: pdfBlob,
+            filename: `${baseName || 'document'}.pdf`,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'word-to-pdf': {
+          setStatusText('Converting Word document to PDF...');
+          const pdfBlob = await convertWordToPdf(primaryFile, {
+            orientation: wordOrientation,
+            margin: wordMargin,
+            onProgress: (cur, tot) => setProgressDetail(`Rendering Word page ${cur} of ${tot}`),
+          });
+          setResult({
+            blob: pdfBlob,
+            filename: `${baseName}.pdf`,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'excel-to-pdf': {
+          setStatusText('Converting Excel spreadsheet to PDF...');
+          const pdfBlob = await convertExcelToPdf(primaryFile, {
+            sheetNames: selectedSheets.length > 0 ? selectedSheets : undefined,
+            orientation: excelOrientation,
+            pageSize: excelPageSize,
+            fitToWidth: excelFitToWidth,
+            onProgress: (cur, tot) => setProgressDetail(`Rendering worksheet ${cur} of ${tot}`),
+          });
+          setResult({
+            blob: pdfBlob,
+            filename: `${baseName}.pdf`,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'powerpoint-to-pdf': {
+          setStatusText('Extracting and rendering PowerPoint slides...');
+          const pdfBlob = await convertPowerPointToPdf(primaryFile, (cur, tot) => {
+            setProgressDetail(`Rendering slide ${cur} of ${tot}`);
+          });
+          setResult({
+            blob: pdfBlob,
+            filename: `${baseName}.pdf`,
             downloadUrl: '',
           });
           break;
@@ -460,7 +700,26 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
         {/* Workspace Body */}
         <div className="workspace-content">
           {processingState === 'idle' && (
-            <FileUpload tool={tool} onFilesSelected={handleFilesSelected} />
+            <div>
+              <FileUpload tool={tool} onFilesSelected={handleFilesSelected} />
+
+              {/* Special quick action for HTML to PDF */}
+              {tool.id === 'html-to-pdf' && (
+                <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+                  <span className="text-xs text-secondary" style={{ marginRight: '0.5rem' }}>
+                    Don't have an HTML file?
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleStartWithHtmlCode}
+                  >
+                    <Code size={14} />
+                    <span>Enter or Paste HTML Code</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {processingState === 'processing' && (
@@ -547,56 +806,200 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                   </div>
                 )}
 
-                {/* Single file PDF preview thumbnail grid for page-based tools */}
-                {pdfDoc && (tool.id === 'organize' || tool.id === 'rotate' || tool.id === 'remove-pages' || tool.id === 'extract-pages') && (
+                {/* PDF Page Thumbnail Grid (for Organize, Rotate, Remove, Extract, PDF to PNG, PDF to WebP) */}
+                {pdfDoc &&
+                  (tool.id === 'organize' ||
+                    tool.id === 'rotate' ||
+                    tool.id === 'remove-pages' ||
+                    tool.id === 'extract-pages' ||
+                    tool.id === 'pdf-to-png' ||
+                    tool.id === 'pdf-to-webp') && (
+                    <div>
+                      <div className="flex items-center justify-between" style={{ marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <span className="form-label">
+                          Pages ({pageCount})
+                          {(tool.id === 'pdf-to-png' || tool.id === 'pdf-to-webp') &&
+                            ` — Converting ${pages.filter((p) => p.selected).length} of ${pageCount} pages`}
+                        </span>
+
+                        {(tool.id === 'pdf-to-png' || tool.id === 'pdf-to-webp') && (
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleSelectAllPages(true)}
+                            >
+                              Select All
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => handleSelectAllPages(false)}
+                            >
+                              Clear Selection
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pages-grid">
+                        {pages.map((p) => (
+                          <PDFPageThumbnail
+                            key={p.pageNumber}
+                            pdfDoc={pdfDoc}
+                            pageNumber={p.pageNumber}
+                            rotation={p.rotation + (tool.id === 'rotate' ? globalRotation : 0)}
+                            selected={p.selected}
+                            selectable={
+                              tool.id === 'remove-pages' ||
+                              tool.id === 'extract-pages' ||
+                              tool.id === 'pdf-to-png' ||
+                              tool.id === 'pdf-to-webp'
+                            }
+                            showRotate={tool.id === 'organize'}
+                            showDelete={tool.id === 'organize'}
+                            onSelect={handleToggleSelectPage}
+                            onRotate={handleRotatePage}
+                            onDelete={handleDeletePage}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Single file PDF preview thumbnail for Watermark, Page-numbers, PDF to JPG, Protect, Split */}
+                {pdfDoc &&
+                  (tool.id === 'watermark' ||
+                    tool.id === 'page-numbers' ||
+                    tool.id === 'pdf-to-jpg' ||
+                    tool.id === 'protect' ||
+                    tool.id === 'split') && (
+                    <div className="file-list-group">
+                      <div className="file-list-item">
+                        <div className="file-item-left">
+                          <FileText size={20} className="file-item-icon" />
+                          <div className="file-item-details">
+                            <span className="file-item-name">{files[0]?.name}</span>
+                            <span className="file-item-size">
+                              {formatBytes(files[0]?.size || 0)} • {pageCount}{' '}
+                              {pageCount === 1 ? 'page' : 'pages'}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="file-item-btn file-item-delete"
+                          onClick={handleReset}
+                          title="Change file"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      <div style={{ maxWidth: '240px', margin: '1rem auto' }}>
+                        <PDFPageThumbnail pdfDoc={pdfDoc} pageNumber={1} rotation={0} />
+                        <p
+                          className="text-xs text-secondary text-center"
+                          style={{ marginTop: '0.5rem', textAlign: 'center' }}
+                        >
+                          Preview: Page 1 of {pageCount}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                {/* HTML to PDF: Code Editor and Live Sandboxed Preview */}
+                {tool.id === 'html-to-pdf' && (
                   <div>
-                    <div className="flex items-center justify-between" style={{ marginBottom: '1rem' }}>
-                      <span className="form-label">
-                        Pages ({pageCount}) {tool.id === 'remove-pages' && '— Click a page to keep or remove'}
-                        {tool.id === 'extract-pages' && '— Click pages to select for extraction'}
-                      </span>
-                      {tool.id === 'remove-pages' && (
-                        <span className="text-xs text-secondary">
-                          Keeping {pages.filter((p) => p.selected).length} of {pageCount} pages
-                        </span>
-                      )}
-                      {tool.id === 'extract-pages' && (
-                        <span className="text-xs text-primary font-medium">
-                          Selected: {pages.filter((p) => p.selected).length} pages
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between" style={{ marginBottom: '0.75rem' }}>
+                      <span className="form-label">HTML Content</span>
+                      <div className="options-pill-group" style={{ marginBottom: 0 }}>
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlInputMode === 'code' ? 'active' : ''}`}
+                          onClick={() => setHtmlInputMode('code')}
+                        >
+                          Editor
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlInputMode === 'file' ? 'active' : ''}`}
+                          onClick={() => setHtmlInputMode('file')}
+                        >
+                          Live Preview
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="pages-grid">
-                      {pages.map((p) => (
-                        <PDFPageThumbnail
-                          key={p.pageNumber}
-                          pdfDoc={pdfDoc}
-                          pageNumber={p.pageNumber}
-                          rotation={p.rotation + (tool.id === 'rotate' ? globalRotation : 0)}
-                          selected={p.selected}
-                          selectable={tool.id === 'remove-pages' || tool.id === 'extract-pages'}
-                          showRotate={tool.id === 'organize'}
-                          showDelete={tool.id === 'organize'}
-                          onSelect={handleToggleSelectPage}
-                          onRotate={handleRotatePage}
-                          onDelete={handleDeletePage}
-                        />
-                      ))}
+                    {htmlInputMode === 'code' ? (
+                      <textarea
+                        className="html-editor-textarea"
+                        value={htmlCode}
+                        onChange={(e) => setHtmlCode(e.target.value)}
+                        placeholder="Enter or paste HTML here..."
+                        spellCheck={false}
+                      />
+                    ) : (
+                      <div
+                        className="doc-preview-box"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(htmlCode) }}
+                      />
+                    )}
+
+                    <div className="conversion-hint-box">
+                      <span style={{ fontWeight: 600 }}>Security Note:</span> HTML is strictly
+                      sanitized client-side with DOMPurify. Scripts and unsafe iframe embeds are
+                      safely removed before rendering to PDF.
                     </div>
                   </div>
                 )}
 
-                {/* For single file preview tools (watermark, page-numbers, pdf-to-jpg, protect) */}
-                {pdfDoc && (tool.id === 'watermark' || tool.id === 'page-numbers' || tool.id === 'pdf-to-jpg' || tool.id === 'protect' || tool.id === 'split') && (
-                  <div className="file-list-group">
-                    <div className="file-list-item">
+                {/* Word to PDF: Live Document Preview */}
+                {tool.id === 'word-to-pdf' && (
+                  <div>
+                    <div className="file-list-item" style={{ marginBottom: '1rem' }}>
                       <div className="file-item-left">
                         <FileText size={20} className="file-item-icon" />
                         <div className="file-item-details">
                           <span className="file-item-name">{files[0]?.name}</span>
+                          <span className="file-item-size">{formatBytes(files[0]?.size || 0)}</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="file-item-btn file-item-delete"
+                        onClick={handleReset}
+                        title="Change file"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    <span className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                      Document Preview
+                    </span>
+                    <div ref={wordPreviewRef} className="doc-preview-box" />
+
+                    <div className="conversion-hint-box">
+                      <Info size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                      <span>
+                        Converts standard paragraphs, headings, bullet lists, tables, and images.
+                        Complex Word macros or specialized vector SmartArt may render with simplified styling.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Excel to PDF: Worksheet Selector and Table Preview */}
+                {tool.id === 'excel-to-pdf' && excelWorkbook && (
+                  <div>
+                    <div className="file-list-item" style={{ marginBottom: '1rem' }}>
+                      <div className="file-item-left">
+                        <TableIcon size={20} className="file-item-icon" />
+                        <div className="file-item-details">
+                          <span className="file-item-name">{files[0]?.name}</span>
                           <span className="file-item-size">
-                            {formatBytes(files[0]?.size || 0)} • {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+                            {formatBytes(files[0]?.size || 0)} • {excelSheetNames.length} worksheets
                           </span>
                         </div>
                       </div>
@@ -610,16 +1013,123 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                       </button>
                     </div>
 
-                    {/* Show first page thumbnail as visual confirmation */}
-                    <div style={{ maxWidth: '240px', margin: '1rem auto' }}>
-                      <PDFPageThumbnail
-                        pdfDoc={pdfDoc}
-                        pageNumber={1}
-                        rotation={0}
+                    {/* Worksheet Selection Tabs */}
+                    <span className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                      Select Worksheets to Include
+                    </span>
+                    <div className="sheet-tab-list">
+                      {excelSheetNames.map((sheet) => (
+                        <button
+                          key={sheet}
+                          type="button"
+                          className={`sheet-tab-btn ${selectedSheets.includes(sheet) ? 'active' : ''}`}
+                          onClick={() => handleToggleExcelSheet(sheet)}
+                        >
+                          {selectedSheets.includes(sheet) && <Check size={12} style={{ marginRight: '4px' }} />}
+                          {sheet}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Active Sheet Table Preview */}
+                    <div style={{ marginTop: '1rem' }}>
+                      <div className="flex items-center justify-between" style={{ marginBottom: '0.5rem' }}>
+                        <span className="form-label">Previewing: {activePreviewSheet || excelSheetNames[0]}</span>
+                        {excelSheetNames.length > 1 && (
+                          <select
+                            className="form-select"
+                            style={{ width: 'auto', padding: '4px 8px', fontSize: '12px' }}
+                            value={activePreviewSheet}
+                            onChange={(e) => setActivePreviewSheet(e.target.value)}
+                          >
+                            {excelSheetNames.map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      <div
+                        className="doc-preview-box"
+                        dangerouslySetInnerHTML={{
+                          __html: getSheetHtmlTable(
+                            excelWorkbook,
+                            activePreviewSheet || excelSheetNames[0] || '',
+                            excelFitToWidth
+                          ),
+                        }}
                       />
-                      <p className="text-xs text-secondary text-center" style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-                        Preview: Page 1 of {pageCount}
-                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* PowerPoint to PDF: Presentation Inspection & Slide List */}
+                {tool.id === 'powerpoint-to-pdf' && pptxInspection && (
+                  <div>
+                    <div className="file-list-item" style={{ marginBottom: '1rem' }}>
+                      <div className="file-item-left">
+                        <Presentation size={20} className="file-item-icon" />
+                        <div className="file-item-details">
+                          <span className="file-item-name">{files[0]?.name}</span>
+                          <span className="file-item-size">
+                            {formatBytes(files[0]?.size || 0)} • {pptxInspection.slideCount} slides
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="file-item-btn file-item-delete"
+                        onClick={handleReset}
+                        title="Change file"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    <span className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                      Extracted Presentation Slides ({pptxInspection.slideCount})
+                    </span>
+
+                    <div className="doc-preview-box">
+                      {pptxInspection.slides.map((s) => (
+                        <div
+                          key={s.slideNumber}
+                          style={{
+                            padding: '12px',
+                            borderBottom: '1px solid #e8eaed',
+                            display: 'flex',
+                            gap: '12px',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color: '#1a73e8',
+                              fontSize: '13px',
+                              minWidth: '55px',
+                            }}
+                          >
+                            Slide {s.slideNumber}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: '#202124', fontSize: '14px' }}>
+                              {s.title}
+                            </div>
+                            <div style={{ color: '#5f6368', fontSize: '12px', marginTop: '4px' }}>
+                              {s.paragraphs.length} paragraph(s) • {s.imageUrls.length} image(s)
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="conversion-hint-box">
+                      <Info size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                      <span>
+                        <strong>Browser-Based Processing Notice:</strong> KloudPDF extracts slides, typography, and embedded images client-side. For 100% vector shape animation fidelity, consider using PowerPoint or Google Slides native "Download as PDF".
+                      </span>
                     </div>
                   </div>
                 )}
@@ -636,12 +1146,269 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
               <div className="workspace-sidebar-panel">
                 <h3 className="sidebar-heading">Configuration</h3>
 
-                {/* Tool-specific configuration controls */}
+                {/* PDF to PNG Configuration */}
+                {tool.id === 'pdf-to-png' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Resolution / Quality</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${pngScale === 1 ? 'active' : ''}`}
+                          onClick={() => setPngScale(1)}
+                        >
+                          Standard (1x)
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${pngScale === 1.5 ? 'active' : ''}`}
+                          onClick={() => setPngScale(1.5)}
+                        >
+                          Crisp (1.5x)
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${pngScale === 2 ? 'active' : ''}`}
+                          onClick={() => setPngScale(2)}
+                        >
+                          Ultra HD (2x)
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-secondary">
+                      Lossless PNG format. Multi-page documents provide individual page downloads and a unified ZIP archive.
+                    </p>
+                  </>
+                )}
+
+                {/* PDF to WebP Configuration */}
+                {tool.id === 'pdf-to-webp' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">WebP Compression Quality</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${webpQuality === 0.7 ? 'active' : ''}`}
+                          onClick={() => setWebpQuality(0.7)}
+                        >
+                          Compact (70%)
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${webpQuality === 0.85 ? 'active' : ''}`}
+                          onClick={() => setWebpQuality(0.85)}
+                        >
+                          Balanced (85%)
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${webpQuality === 0.95 ? 'active' : ''}`}
+                          onClick={() => setWebpQuality(0.95)}
+                        >
+                          Maximum (95%)
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-secondary">
+                      Modern WebP provides 25-35% smaller file sizes than JPEG with identical visual quality.
+                    </p>
+                  </>
+                )}
+
+                {/* HTML to PDF Configuration */}
+                {tool.id === 'html-to-pdf' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Page Size</label>
+                      <select
+                        className="form-select"
+                        value={htmlPageSize}
+                        onChange={(e) => setHtmlPageSize(e.target.value as HtmlPageSize)}
+                      >
+                        <option value="a4">A4 (210 × 297 mm)</option>
+                        <option value="a3">A3 (297 × 420 mm)</option>
+                        <option value="letter">Letter (8.5 × 11 in)</option>
+                        <option value="legal">Legal (8.5 × 14 in)</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Orientation</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlOrientation === 'portrait' ? 'active' : ''}`}
+                          onClick={() => setHtmlOrientation('portrait')}
+                        >
+                          Portrait
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlOrientation === 'landscape' ? 'active' : ''}`}
+                          onClick={() => setHtmlOrientation('landscape')}
+                        >
+                          Landscape
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Page Margin</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlMargin === 0 ? 'active' : ''}`}
+                          onClick={() => setHtmlMargin(0)}
+                        >
+                          None
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlMargin === 20 ? 'active' : ''}`}
+                          onClick={() => setHtmlMargin(20)}
+                        >
+                          Small (20pt)
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${htmlMargin === 40 ? 'active' : ''}`}
+                          onClick={() => setHtmlMargin(40)}
+                        >
+                          Standard (40pt)
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Word to PDF Configuration */}
+                {tool.id === 'word-to-pdf' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Page Orientation</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${wordOrientation === 'portrait' ? 'active' : ''}`}
+                          onClick={() => setWordOrientation('portrait')}
+                        >
+                          Portrait
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${wordOrientation === 'landscape' ? 'active' : ''}`}
+                          onClick={() => setWordOrientation('landscape')}
+                        >
+                          Landscape
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Margins</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${wordMargin === 0 ? 'active' : ''}`}
+                          onClick={() => setWordMargin(0)}
+                        >
+                          None
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${wordMargin === 20 ? 'active' : ''}`}
+                          onClick={() => setWordMargin(20)}
+                        >
+                          Standard
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${wordMargin === 40 ? 'active' : ''}`}
+                          onClick={() => setWordMargin(40)}
+                        >
+                          Wide
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Excel to PDF Configuration */}
+                {tool.id === 'excel-to-pdf' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Page Orientation</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${excelOrientation === 'landscape' ? 'active' : ''}`}
+                          onClick={() => setExcelOrientation('landscape')}
+                        >
+                          Landscape (Recommended)
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${excelOrientation === 'portrait' ? 'active' : ''}`}
+                          onClick={() => setExcelOrientation('portrait')}
+                        >
+                          Portrait
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Paper Size</label>
+                      <select
+                        className="form-select"
+                        value={excelPageSize}
+                        onChange={(e) => setExcelPageSize(e.target.value as 'a4' | 'letter')}
+                      >
+                        <option value="a4">A4 (Standard)</option>
+                        <option value="letter">Letter</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Fit to Page Width</label>
+                      <div className="options-pill-group">
+                        <button
+                          type="button"
+                          className={`options-pill ${excelFitToWidth ? 'active' : ''}`}
+                          onClick={() => setExcelFitToWidth(true)}
+                        >
+                          Auto Fit
+                        </button>
+                        <button
+                          type="button"
+                          className={`options-pill ${!excelFitToWidth ? 'active' : ''}`}
+                          onClick={() => setExcelFitToWidth(false)}
+                        >
+                          Original Width
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* PowerPoint to PDF Configuration */}
+                {tool.id === 'powerpoint-to-pdf' && (
+                  <div className="form-group">
+                    <span className="form-label">Output Aspect Ratio</span>
+                    <p className="text-sm text-secondary">
+                      16:9 Widescreen Landscape (960 × 540 pt). Matches modern presentation displays.
+                    </p>
+                  </div>
+                )}
 
                 {/* Split Configuration */}
                 {tool.id === 'split' && (
                   <div className="form-group">
-                    <label className="form-label" htmlFor="split-range-input">Page Ranges to Extract</label>
+                    <label className="form-label" htmlFor="split-range-input">
+                      Page Ranges to Extract
+                    </label>
                     <input
                       id="split-range-input"
                       type="text"
@@ -762,7 +1529,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                 {tool.id === 'watermark' && (
                   <>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="watermark-text-input">Watermark Text</label>
+                      <label className="form-label" htmlFor="watermark-text-input">
+                        Watermark Text
+                      </label>
                       <input
                         id="watermark-text-input"
                         type="text"
@@ -802,7 +1571,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
 
                     <div className="form-row">
                       <div className="form-group">
-                        <label className="form-label" htmlFor="watermark-color-select">Color</label>
+                        <label className="form-label" htmlFor="watermark-color-select">
+                          Color
+                        </label>
                         <select
                           id="watermark-color-select"
                           className="form-select"
@@ -817,7 +1588,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                       </div>
 
                       <div className="form-group">
-                        <label className="form-label" htmlFor="watermark-opacity-select">Opacity</label>
+                        <label className="form-label" htmlFor="watermark-opacity-select">
+                          Opacity
+                        </label>
                         <select
                           id="watermark-opacity-select"
                           className="form-select"
@@ -833,7 +1606,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="watermark-size-select">Font Size</label>
+                      <label className="form-label" htmlFor="watermark-size-select">
+                        Font Size
+                      </label>
                       <select
                         id="watermark-size-select"
                         className="form-select"
@@ -852,7 +1627,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                 {tool.id === 'page-numbers' && (
                   <>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="page-number-position-select">Position</label>
+                      <label className="form-label" htmlFor="page-number-position-select">
+                        Position
+                      </label>
                       <select
                         id="page-number-position-select"
                         className="form-select"
@@ -868,7 +1645,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="page-number-format-select">Format</label>
+                      <label className="form-label" htmlFor="page-number-format-select">
+                        Format
+                      </label>
                       <select
                         id="page-number-format-select"
                         className="form-select"
@@ -888,7 +1667,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                 {tool.id === 'protect' && (
                   <>
                     <div className="form-group">
-                      <label className="form-label" htmlFor="protect-password-input">Document Password</label>
+                      <label className="form-label" htmlFor="protect-password-input">
+                        Document Password
+                      </label>
                       <div className="flex items-center" style={{ position: 'relative' }}>
                         <input
                           id="protect-password-input"
@@ -902,7 +1683,11 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          style={{ position: 'absolute', right: '10px', color: 'var(--color-text-secondary)' }}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            color: 'var(--color-text-secondary)',
+                          }}
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
                           {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -911,7 +1696,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label" htmlFor="protect-confirm-input">Confirm Password</label>
+                      <label className="form-label" htmlFor="protect-confirm-input">
+                        Confirm Password
+                      </label>
                       <input
                         id="protect-confirm-input"
                         type={showPassword ? 'text' : 'password'}
@@ -923,7 +1710,8 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     </div>
 
                     <p className="text-xs text-secondary">
-                      Your PDF will be protected with AES client-side encryption. The password will be required every time the document is opened.
+                      Your PDF will be protected with AES client-side encryption. The password will be
+                      required every time the document is opened.
                     </p>
                   </>
                 )}

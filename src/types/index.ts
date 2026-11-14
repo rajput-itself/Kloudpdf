@@ -9,9 +9,22 @@ export type ToolId =
   | 'extract-pages'
   | 'jpg-to-pdf'
   | 'pdf-to-jpg'
+  | 'pdf-to-png'
+  | 'pdf-to-webp'
+  | 'html-to-pdf'
+  | 'word-to-pdf'
+  | 'excel-to-pdf'
+  | 'powerpoint-to-pdf'
   | 'watermark'
   | 'page-numbers'
   | 'protect';
+
+export interface ConvertedImagePageItem {
+  pageNumber: number;
+  blob: Blob;
+  filename: string;
+  url: string;
+}
 
 export interface ToolDefinition {
   id: ToolId;
@@ -31,6 +44,7 @@ export interface ProcessedResult {
   filename: string;
   downloadUrl: string;
   fileCount?: number;
+  imageItems?: ConvertedImagePageItem[];
 }
 
 export interface PDFPageInfo {
