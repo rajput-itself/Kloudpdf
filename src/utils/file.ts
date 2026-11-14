@@ -16,10 +16,10 @@ export function downloadBlob(blob: Blob, filename: string): void {
   anchor.click();
   document.body.removeChild(anchor);
 
-  // Revoke URL shortly after to free memory while ensuring download initiated
+  // Allow ample time for mobile browsers (e.g. iOS Safari download prompt) before revoking
   setTimeout(() => {
     URL.revokeObjectURL(url);
-  }, 1000);
+  }, 30000);
 }
 
 export function isValidFileType(file: File, acceptedTypes: string): boolean {

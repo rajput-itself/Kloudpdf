@@ -118,6 +118,9 @@ export async function convertPdfToJpg(
     const jpegBlob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (blob) => {
+          // Immediately free canvas memory buffer
+          canvas.width = 0;
+          canvas.height = 0;
           if (blob) resolve(blob);
           else reject(new Error(`Failed to convert page ${pageNum} to JPEG`));
         },

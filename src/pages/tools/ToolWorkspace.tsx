@@ -106,9 +106,14 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
         });
       }
       setPages(initialPages);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to load PDF preview:', err);
-      setErrorMessage('Could not render PDF preview. File might be corrupted or encrypted.');
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.toLowerCase().includes('password') || msg.toLowerCase().includes('encrypted')) {
+        setErrorMessage('This PDF is password-protected. Please provide an unlocked document.');
+      } else {
+        setErrorMessage('Could not render PDF preview. Please ensure the file is a valid, uncorrupted PDF.');
+      }
     }
   };
 

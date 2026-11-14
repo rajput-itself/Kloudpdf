@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { RotateCw, Trash2, Check } from 'lucide-react';
-import { renderPageToCanvas } from '../../services/pdf/render';
 import './PDFPreview.css';
 
 interface PDFPageThumbnailProps {
@@ -35,6 +34,8 @@ export const PDFPageThumbnail: React.FC<PDFPageThumbnailProps> = ({
 
   useEffect(() => {
     let isCancelled = false;
+    // Track active render task to cancel safely on rapid rotation or unmount
+    let renderTask: ReturnType<pdfjsLib.PDFPageProxy['render']> | null = null;
 
     async function renderThumbnail() {
       if (!canvasRef.current) return;
@@ -42,14 +43,52 @@ export const PDFPageThumbnail: React.FC<PDFPageThumbnailProps> = ({
       setRenderError(false);
 
       try {
-        await renderPageToCanvas(pdfDoc, pageNumber, canvasRef.current, {
-          scale: 0.35,
-          rotation,
+        const page = await pdfDoc.getPage(pageNumber);
+        if (isCancelled) return;
+
+        const scale = 0.35;
+        const viewport = page.getViewport({
+          scale,
+          rotation: (page.rotate + rotation) % 360,
         });
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const context = canvas.getContext('2d');
+        if (!context) return;
+
+        // Cap devicePixelRatio at 2 to maximize performance & reduce RAM on high-DPI mobile screens
+        const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = `${Math.floor(viewport.width)}px`;
+        canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+        context.save();
+        context.scale(outputScale, outputScale);
+
+        renderTask = page.render({
+          canvasContext: context,
+          viewport,
+        });
+
+        await renderTask.promise;
+        context.restore();
+
         if (!isCancelled) {
           setIsLoading(false);
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === 'object' &&
+          'name' in err &&
+          err.name === 'RenderingCancelledException'
+        ) {
+          // Expected cancellation when rotating or re-rendering
+          return;
+        }
         console.error(`Failed to render thumbnail for page ${pageNumber}:`, err);
         if (!isCancelled) {
           setRenderError(true);
@@ -62,6 +101,9 @@ export const PDFPageThumbnail: React.FC<PDFPageThumbnailProps> = ({
 
     return () => {
       isCancelled = true;
+      if (renderTask) {
+        renderTask.cancel();
+      }
     };
   }, [pdfDoc, pageNumber, rotation]);
 

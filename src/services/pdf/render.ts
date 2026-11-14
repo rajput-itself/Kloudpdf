@@ -74,8 +74,8 @@ export async function renderPageToCanvas(
     throw new Error('Could not retrieve 2D rendering context for preview');
   }
 
-  // Adjust for devicePixelRatio for sharp rendering
-  const outputScale = window.devicePixelRatio || 1;
+  // Adjust for devicePixelRatio for sharp rendering, capped at 2 for performance
+  const outputScale = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.floor(viewport.width * outputScale);
   canvas.height = Math.floor(viewport.height * outputScale);
   canvas.style.width = `${Math.floor(viewport.width)}px`;
