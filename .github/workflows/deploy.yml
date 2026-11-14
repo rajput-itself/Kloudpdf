@@ -48,7 +48,7 @@ jobs:
           retention-days: 7
 
   deploy:
-    name: Deploy to Hostinger
+    name: Deploy to Hostinger (SSH)
     needs: build
 
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -62,13 +62,51 @@ jobs:
           name: kloudpdf-build
           path: dist/
 
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/kloudpdf_deploy
+          chmod 600 ~/.ssh/kloudpdf_deploy
+
+          ssh-keyscan -p "$SSH_PORT" -t ed25519 "$SSH_HOST" > ~/.ssh/known_hosts
+
+          chmod 600 ~/.ssh/known_hosts
+
+          ACTUAL_FINGERPRINT=$(ssh-keygen -lf ~/.ssh/known_hosts -E sha256 | awk '{print $2}')
+
+          EXPECTED_FINGERPRINT="SHA256:qp+sqKADrulB5cDJwE61uWyoPe9Ceq/jPmr8PZPioM4"
+
+          if [ "$ACTUAL_FINGERPRINT" != "$EXPECTED_FINGERPRINT" ]; then
+            echo "ERROR: Hostinger SSH fingerprint verification failed!"
+            exit 1
+          fi
+
+          echo "SSH configuration and host verification successful."
+
       - name: Deploy Website
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          local-dir: dist/
-          server-dir: public_html/
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+
+        run: |
+          set -euo pipefail
+
+          scp \
+            -i ~/.ssh/kloudpdf_deploy \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -P "$SSH_PORT" \
+            -r dist/. \
+            "$SSH_USERNAME@$SSH_HOST:/home/u942254885/public_html/public_html/"
+
+          echo "KloudPDF deployment completed successfully."
