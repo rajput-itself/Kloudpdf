@@ -1,0 +1,28 @@
+# KloudPDF Production Configuration for Apache / LiteSpeed (Hostinger)
+
+# 1. Correct MIME types for JavaScript, ES Modules, and WebAssembly
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/javascript .js .mjs
+  AddType application/wasm .wasm
+  AddType application/json .json
+  AddType image/svg+xml .svg
+</IfModule>
+
+# 2. CORS and security headers for Web Workers
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|mjs|wasm)$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Cross-Origin-Resource-Policy "cross-origin"
+  </FilesMatch>
+</IfModule>
+
+# 3. Single Page Application (SPA) Fallback
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

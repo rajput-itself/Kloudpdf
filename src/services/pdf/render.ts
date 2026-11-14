@@ -1,8 +1,20 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-// Initialize PDF.js worker using Vite asset URL
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+// Configure PDF.js worker with .js extension for universal MIME type support across all hosts & devices
+const configureWorkerSrc = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      const base = import.meta.env.BASE_URL || '/';
+      const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+      return new URL(`${normalizedBase}pdf.worker.min.js`, window.location.href).href;
+    } catch {
+      return '/pdf.worker.min.js';
+    }
+  }
+  return 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+};
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = configureWorkerSrc();
 
 export interface RenderPageOptions {
   scale?: number;
@@ -10,15 +22,32 @@ export interface RenderPageOptions {
 }
 
 /**
- * Loads a PDF document from an ArrayBuffer or File
+ * Loads a PDF document from an ArrayBuffer or File with automatic worker retry
  */
 export async function loadPdfDocument(data: ArrayBuffer | Uint8Array) {
-  const loadingTask = pdfjsLib.getDocument({
-    data,
-    cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
-    cMapPacked: true,
-  });
-  return await loadingTask.promise;
+  try {
+    const loadingTask = pdfjsLib.getDocument({
+      data,
+      cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
+      cMapPacked: true,
+    });
+    return await loadingTask.promise;
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    // If worker fails due to browser worker restrictions or MIME issues, retry with CDN fallback
+    if (errorMsg.toLowerCase().includes('worker')) {
+      console.warn('PDF.js worker fallback activated:', errorMsg);
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+      const retryTask = pdfjsLib.getDocument({
+        data,
+        cMapUrl: 'https://unpkg.com/pdfjs-dist@4.10.38/cmaps/',
+        cMapPacked: true,
+      });
+      return await retryTask.promise;
+    }
+    throw err;
+  }
 }
 
 /**
