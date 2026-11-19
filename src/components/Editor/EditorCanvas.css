@@ -1,0 +1,74 @@
+.editor-canvas-viewport {
+  flex: 1;
+  height: 100%;
+  background-color: #f1f3f4;
+  overflow: auto;
+  position: relative;
+  outline: none;
+  cursor: default;
+  -webkit-overflow-scrolling: touch;
+}
+
+.editor-canvas-viewport.mode-active {
+  cursor: crosshair;
+}
+
+.editor-pages-scroll-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+  padding: 4.5rem 2rem 6rem 2rem;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.editor-page-card {
+  position: relative;
+  background-color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  user-select: none;
+  flex-shrink: 0;
+  transition: box-shadow 0.15s ease;
+}
+
+.editor-page-card:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.editor-page-tag {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+
+.pdf-page-canvas {
+  display: block;
+  pointer-events: none;
+}
+
+.editor-creation-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.creation-box-preview {
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .editor-pages-scroll-stack {
+    padding: 3rem 0.75rem calc(9rem + env(safe-area-inset-bottom, 0px)) 0.75rem;
+    gap: 1.5rem;
+  }
+}

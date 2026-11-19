@@ -16,6 +16,16 @@ import {
   Stamp,
   Hash,
   ShieldCheck,
+  FileX,
+  BookOpen,
+  ScanText,
+  Contrast,
+  Highlighter,
+  Eraser,
+  CheckSquare,
+  Layers,
+  Compass,
+  FileEdit,
   LucideIcon,
 } from 'lucide-react';
 import { ToolDefinition, ToolId } from '../../types';
@@ -27,12 +37,15 @@ interface ToolCardProps {
 }
 
 const ICON_MAP: Record<ToolId, LucideIcon> = {
+  'edit-pdf': FileEdit,
   merge: Files,
   split: Scissors,
   organize: LayoutGrid,
   rotate: RotateCw,
   'remove-pages': FileMinus,
   'extract-pages': FileOutput,
+  'remove-blank-pages': FileX,
+  'booklet-maker': BookOpen,
   'jpg-to-pdf': FileImage,
   'pdf-to-jpg': Images,
   'pdf-to-png': Image,
@@ -41,8 +54,16 @@ const ICON_MAP: Record<ToolId, LucideIcon> = {
   'word-to-pdf': FileText,
   'excel-to-pdf': Table,
   'powerpoint-to-pdf': Presentation,
+  'pdf-to-text': FileText,
+  'ocr-pdf': ScanText,
+  'grayscale-pdf': Contrast,
   watermark: Stamp,
   'page-numbers': Hash,
+  'annotate-pdf': Highlighter,
+  'redact-pdf': Eraser,
+  'fill-forms': CheckSquare,
+  'flatten-pdf': Layers,
+  'deskew-pdf': Compass,
   protect: ShieldCheck,
 };
 

@@ -13,10 +13,17 @@ const ToolWorkspace = lazy(() =>
   }))
 );
 
+const PDFEditorWorkspace = lazy(() =>
+  import('./components/Editor/PDFEditorWorkspace').then((module) => ({
+    default: module.PDFEditorWorkspace,
+  }))
+);
+
 export default function App() {
   const [currentToolId, setCurrentToolId] = useState<ToolId | null>(() => {
-    const hash = window.location.hash.replace(/^#\/?/, '') as ToolId;
-    return TOOLS.some((t) => t.id === hash) ? hash : null;
+    const rawHash = window.location.hash.replace(/^#\/?/, '');
+    if (rawHash === 'edit-pdf' || rawHash === 'edit') return 'edit-pdf';
+    return TOOLS.some((t) => t.id === rawHash) ? (rawHash as ToolId) : null;
   });
 
   const [modalType, setModalType] = useState<'about' | 'contact' | 'privacy' | 'terms' | null>(null);
@@ -24,9 +31,11 @@ export default function App() {
   // Synchronize hash with state for browser history and direct bookmarks
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace(/^#\/?/, '') as ToolId;
-      if (TOOLS.some((t) => t.id === hash)) {
-        setCurrentToolId(hash);
+      const rawHash = window.location.hash.replace(/^#\/?/, '');
+      if (rawHash === 'edit-pdf' || rawHash === 'edit') {
+        setCurrentToolId('edit-pdf');
+      } else if (TOOLS.some((t) => t.id === rawHash)) {
+        setCurrentToolId(rawHash as ToolId);
       } else {
         setCurrentToolId(null);
       }
@@ -52,48 +61,77 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Header
-        onNavigateHome={handleNavigateHome}
-        onOpenAbout={() => setModalType('about')}
-        onOpenContact={() => setModalType('contact')}
-      />
+      {selectedTool?.id !== 'edit-pdf' && (
+        <Header
+          onNavigateHome={handleNavigateHome}
+          onOpenAbout={() => setModalType('about')}
+          onOpenContact={() => setModalType('contact')}
+        />
+      )}
 
       <main className="main-content">
         {selectedTool ? (
-          <Suspense
-            fallback={
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '50vh',
-                  gap: '1rem',
-                  color: 'var(--color-primary)',
-                }}
-              >
-                <Loader2 size={36} className="btn-spinner" />
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                  Loading {selectedTool.name}...
-                </p>
-              </div>
-            }
-          >
-            <ToolWorkspace tool={selectedTool} onBack={handleNavigateHome} />
-          </Suspense>
+          selectedTool.id === 'edit-pdf' ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80vh',
+                    gap: '1rem',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <Loader2 size={36} className="btn-spinner" />
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                    Loading PDF Editor...
+                  </p>
+                </div>
+              }
+            >
+              <PDFEditorWorkspace tool={selectedTool} onBack={handleNavigateHome} />
+            </Suspense>
+          ) : (
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '50vh',
+                    gap: '1rem',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <Loader2 size={36} className="btn-spinner" />
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                    Loading {selectedTool.name}...
+                  </p>
+                </div>
+              }
+            >
+              <ToolWorkspace tool={selectedTool} onBack={handleNavigateHome} />
+            </Suspense>
+          )
         ) : (
           <HomePage onSelectTool={handleSelectTool} />
         )}
       </main>
 
-      <Footer
-        onNavigateHome={handleNavigateHome}
-        onOpenAbout={() => setModalType('about')}
-        onOpenContact={() => setModalType('contact')}
-        onOpenPrivacy={() => setModalType('privacy')}
-        onOpenTerms={() => setModalType('terms')}
-      />
+      {selectedTool?.id !== 'edit-pdf' && (
+        <Footer
+          onNavigateHome={handleNavigateHome}
+          onOpenAbout={() => setModalType('about')}
+          onOpenContact={() => setModalType('contact')}
+          onOpenPrivacy={() => setModalType('privacy')}
+          onOpenTerms={() => setModalType('terms')}
+        />
+      )}
 
       {/* About Modal */}
       <Modal

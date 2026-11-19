@@ -11,6 +11,10 @@ interface PDFPageThumbnailProps {
   selectable?: boolean;
   showRotate?: boolean;
   showDelete?: boolean;
+  badge?: {
+    text: string;
+    variant?: 'danger' | 'primary' | 'blank';
+  };
   onSelect?: (pageNumber: number) => void;
   onRotate?: (pageNumber: number) => void;
   onDelete?: (pageNumber: number) => void;
@@ -24,6 +28,7 @@ export const PDFPageThumbnail: React.FC<PDFPageThumbnailProps> = ({
   selectable = false,
   showRotate = false,
   showDelete = false,
+  badge,
   onSelect,
   onRotate,
   onDelete,
@@ -127,6 +132,25 @@ export const PDFPageThumbnail: React.FC<PDFPageThumbnailProps> = ({
           <div className={`thumbnail-checkbox ${selected ? 'checked' : ''}`}>
             {selected && <Check size={12} strokeWidth={3} />}
           </div>
+        )}
+
+        {badge && (
+          <span
+            style={{
+              position: 'absolute',
+              top: '6px',
+              right: '6px',
+              padding: '2px 6px',
+              fontSize: '10px',
+              fontWeight: 700,
+              borderRadius: '4px',
+              backgroundColor: badge.variant === 'blank' || badge.variant === 'danger' ? '#ea4335' : '#1a73e8',
+              color: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            }}
+          >
+            {badge.text}
+          </span>
         )}
       </div>
 
