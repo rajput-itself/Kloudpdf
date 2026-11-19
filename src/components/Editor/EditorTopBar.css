@@ -1,0 +1,220 @@
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 1rem;
+  z-index: 20;
+  position: relative;
+  user-select: none;
+  gap: 0.5rem;
+}
+
+.topbar-left,
+.topbar-center,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.topbar-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  min-height: 36px;
+  border-radius: var(--radius-md, 6px);
+  background: none;
+  border: 1px solid transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.topbar-back-btn:hover {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-main);
+  border-color: var(--color-border-subtle);
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--color-border-subtle);
+  margin: 0 0.25rem;
+  flex-shrink: 0;
+}
+
+.topbar-doc-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 220px;
+  min-width: 0;
+}
+
+.doc-icon {
+  flex-shrink: 0;
+}
+
+.doc-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-unsaved-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background-color: #e8f0fe;
+  color: var(--color-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.topbar-history-group,
+.topbar-zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background-color: var(--color-bg-subtle);
+  padding: 2px 4px;
+  border-radius: var(--radius-md, 6px);
+  border: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.topbar-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.topbar-icon-btn:hover:not(:disabled) {
+  background-color: #ffffff;
+  color: var(--color-text-main);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.topbar-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.topbar-zoom-label-btn {
+  background: none;
+  border: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  padding: 0 6px;
+  cursor: pointer;
+  min-width: 48px;
+  text-align: center;
+}
+
+.topbar-zoom-label-btn:hover {
+  color: var(--color-primary);
+}
+
+.topbar-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem;
+  min-height: 36px;
+  border-radius: var(--radius-md, 6px);
+  background: none;
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.topbar-reset-btn:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.download-text-short {
+  display: none;
+}
+
+.download-text-full {
+  display: inline;
+}
+
+/* Tablet & Mobile Breakpoints */
+@media (max-width: 820px) {
+  .topbar-doc-info {
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 680px) {
+  .editor-topbar {
+    padding: 0 0.5rem;
+    height: 52px;
+    gap: 0.25rem;
+  }
+
+  .back-text,
+  .reset-text,
+  .doc-unsaved-badge {
+    display: none;
+  }
+
+  .topbar-doc-info {
+    max-width: 100px;
+  }
+
+  /* On small screens, hide desktop zoom buttons (touch pinch zoom handles it) */
+  .topbar-zoom-group {
+    display: none;
+  }
+
+  .download-text-full {
+    display: none;
+  }
+
+  .download-text-short {
+    display: inline;
+  }
+
+  .topbar-divider {
+    margin: 0 2px;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar-doc-info {
+    max-width: 75px;
+  }
+  .doc-title {
+    font-size: 0.8125rem;
+  }
+}

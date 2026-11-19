@@ -1,5 +1,14 @@
-import React from 'react';
-import { CheckCircle2, Download, RefreshCw, FileText, FileImage, Image } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  CheckCircle2,
+  Download,
+  RefreshCw,
+  FileText,
+  FileImage,
+  Image,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { Button } from '../../components/common/Button/Button';
 import { ProcessedResult } from '../../types';
 import { formatBytes, downloadBlob } from '../../utils/file';
@@ -11,16 +20,20 @@ interface CompletedViewProps {
 }
 
 export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset }) => {
+  const [copied, setCopied] = useState(false);
+
   const isZip = result.filename.toLowerCase().endsWith('.zip');
   const isPng = result.filename.toLowerCase().endsWith('.png');
   const isWebp = result.filename.toLowerCase().endsWith('.webp');
   const isJpg = result.filename.toLowerCase().endsWith('.jpg') || result.filename.toLowerCase().endsWith('.jpeg');
+  const isTxt = result.filename.toLowerCase().endsWith('.txt');
 
   let downloadLabel = 'Download PDF';
   if (isZip) downloadLabel = 'Download All (ZIP)';
   else if (isPng) downloadLabel = 'Download PNG';
   else if (isWebp) downloadLabel = 'Download WebP';
   else if (isJpg) downloadLabel = 'Download JPG';
+  else if (isTxt) downloadLabel = 'Download Text (.txt)';
 
   const handleDownloadMain = () => {
     downloadBlob(result.blob, result.filename);
@@ -28,6 +41,24 @@ export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset })
 
   const handleDownloadItem = (blob: Blob, filename: string) => {
     downloadBlob(blob, filename);
+  };
+
+  const handleCopyText = async () => {
+    if (!result.textOutput) return;
+    try {
+      await navigator.clipboard.writeText(result.textOutput);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      console.warn('Clipboard write failed:', err);
+    }
+  };
+
+  const handleDownloadTxt = () => {
+    if (!result.textOutput) return;
+    const txtBlob = new Blob([result.textOutput], { type: 'text/plain;charset=utf-8' });
+    const txtName = result.filename.replace(/\.[^/.]+$/, '') + '.txt';
+    downloadBlob(txtBlob, txtName);
   };
 
   return (
@@ -43,7 +74,13 @@ export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset })
 
       <div className="completed-file-card">
         <div className="completed-file-icon">
-          {isPng || isWebp || isJpg ? <FileImage size={24} /> : <FileText size={24} />}
+          {isPng || isWebp || isJpg ? (
+            <FileImage size={24} />
+          ) : isTxt ? (
+            <FileText size={24} />
+          ) : (
+            <FileText size={24} />
+          )}
         </div>
         <div className="completed-file-info">
           <span className="completed-filename">{result.filename}</span>
@@ -61,6 +98,17 @@ export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset })
           {downloadLabel}
         </Button>
 
+        {result.textOutput && !isTxt && (
+          <Button
+            variant="secondary"
+            size="lg"
+            icon={<Download size={16} />}
+            onClick={handleDownloadTxt}
+          >
+            Download TXT
+          </Button>
+        )}
+
         <Button
           variant="secondary"
           size="lg"
@@ -70,6 +118,43 @@ export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset })
           Start Again
         </Button>
       </div>
+
+      {/* Extracted Text Section (for PDF to Text and OCR) */}
+      {result.textOutput && (
+        <div className="completed-individual-section" style={{ textAlign: 'left' }}>
+          <div className="completed-section-header">
+            <h4 className="completed-section-title">
+              <FileText size={18} className="text-primary" />
+              <span>Extracted Text</span>
+            </h4>
+            <div className="completed-header-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleCopyText}
+              >
+                {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                <span>{copied ? 'Copied to Clipboard!' : 'Copy Text'}</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleDownloadTxt}
+              >
+                <Download size={14} />
+                <span>Save as TXT</span>
+              </button>
+            </div>
+          </div>
+
+          <textarea
+            className="html-editor-textarea"
+            style={{ minHeight: '260px', width: '100%' }}
+            value={result.textOutput}
+            readOnly
+          />
+        </div>
+      )}
 
       {/* Individual Page Downloads Section (for multi-page image conversions) */}
       {result.imageItems && result.imageItems.length > 1 && (

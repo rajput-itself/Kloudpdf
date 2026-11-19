@@ -1,12 +1,15 @@
 export type ToolCategory = 'organize' | 'convert' | 'edit' | 'protect';
 
 export type ToolId =
+  | 'edit-pdf'
   | 'merge'
   | 'split'
   | 'organize'
   | 'rotate'
   | 'remove-pages'
   | 'extract-pages'
+  | 'remove-blank-pages'
+  | 'booklet-maker'
   | 'jpg-to-pdf'
   | 'pdf-to-jpg'
   | 'pdf-to-png'
@@ -15,8 +18,16 @@ export type ToolId =
   | 'word-to-pdf'
   | 'excel-to-pdf'
   | 'powerpoint-to-pdf'
+  | 'pdf-to-text'
+  | 'ocr-pdf'
+  | 'grayscale-pdf'
   | 'watermark'
   | 'page-numbers'
+  | 'annotate-pdf'
+  | 'redact-pdf'
+  | 'fill-forms'
+  | 'flatten-pdf'
+  | 'deskew-pdf'
   | 'protect';
 
 export interface ConvertedImagePageItem {
@@ -45,6 +56,7 @@ export interface ProcessedResult {
   downloadUrl: string;
   fileCount?: number;
   imageItems?: ConvertedImagePageItem[];
+  textOutput?: string;
 }
 
 export interface PDFPageInfo {
