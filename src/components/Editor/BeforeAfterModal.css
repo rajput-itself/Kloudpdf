@@ -1,0 +1,258 @@
+.diff-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+  animation: diffFadeIn 0.2s ease-out;
+}
+
+@keyframes diffFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.diff-modal-card {
+  width: 900px;
+  max-width: 95vw;
+  max-height: 90vh;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diff-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dadce0;
+}
+
+.diff-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #202124;
+}
+
+.diff-close-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  color: #5f6368;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.diff-close-btn:hover {
+  background-color: #e8eaed;
+  color: #202124;
+}
+
+.diff-view-switcher {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background-color: #f1f3f4;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.diff-switch-tab {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5f6368;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.diff-switch-tab.active {
+  background-color: #ffffff;
+  border-color: #dadce0;
+  color: #1a73e8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.diff-preview-container {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  background-color: #eef0f3;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.diff-preview-pane {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid #dadce0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.diff-pane-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  z-index: 2;
+}
+
+.badge-orig {
+  background-color: #f1f3f4;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+}
+
+.badge-edited {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  border: 1px solid #c2e7ff;
+}
+
+.diff-img-wrapper {
+  max-width: 100%;
+  max-height: 380px;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff-img-wrapper img {
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+.diff-placeholder {
+  font-size: 12px;
+  color: #5f6368;
+  padding: 40px;
+}
+
+.diff-summary-panel {
+  padding: 14px 20px;
+  background-color: #ffffff;
+  border-top: 1px solid #e8eaed;
+}
+
+.diff-summary-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #202124;
+  margin: 0 0 8px 0;
+}
+
+.diff-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.diff-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f8f9fa;
+  border: 1px solid #e8eaed;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #3c4043;
+}
+
+.diff-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.diff-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.diff-action-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.tag-replace {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+}
+
+.tag-delete {
+  background-color: #fce8e6;
+  color: #d93025;
+}
+
+.diff-text-old {
+  color: #d93025;
+  text-decoration: line-through;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-arrow {
+  color: #5f6368;
+}
+
+.diff-text-new {
+  color: #188038;
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #dadce0;
+}

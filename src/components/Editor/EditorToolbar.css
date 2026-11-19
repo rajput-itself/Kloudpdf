@@ -41,6 +41,21 @@
   font-weight: 600;
 }
 
+.toolbar-btn-content.active {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  border-color: #c2e7ff;
+}
+
+.toolbar-btn.has-badge::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #1a73e8;
+  margin-left: -2px;
+}
+
 .toolbar-separator {
   width: 1px;
   height: 20px;

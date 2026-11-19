@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Bold,
   Italic,
@@ -8,6 +8,8 @@ import {
   Trash2,
   Copy,
   RotateCw,
+  Upload,
+  Info,
 } from 'lucide-react';
 import {
   EditorObject,
@@ -19,6 +21,8 @@ import {
   NoteEditorObject,
   SignatureEditorObject,
   StandardFontFamily,
+  ExistingTextItem,
+  ExistingImageItem,
 } from '../../types/editor';
 import './EditorContextBar.css';
 
@@ -27,6 +31,12 @@ interface EditorContextBarProps {
   onUpdateObject: (updated: EditorObject) => void;
   onDeleteObject: (id: string) => void;
   onDuplicateObject: (id: string) => void;
+  selectedExistingText?: ExistingTextItem | null;
+  onUpdateExistingText?: (updated: ExistingTextItem) => void;
+  onDeleteExistingText?: (id: string) => void;
+  selectedExistingImage?: ExistingImageItem | null;
+  onReplaceExistingImage?: (id: string, file: File) => void;
+  onDeleteExistingImage?: (id: string) => void;
 }
 
 const COLOR_PALETTE = [
@@ -58,7 +68,197 @@ export const EditorContextBar: React.FC<EditorContextBarProps> = ({
   onUpdateObject,
   onDeleteObject,
   onDuplicateObject,
+  selectedExistingText,
+  onUpdateExistingText,
+  onDeleteExistingText,
+  selectedExistingImage,
+  onReplaceExistingImage,
+  onDeleteExistingImage,
 }) => {
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 1. Existing PDF Text Selected (Phase 2)
+  if (selectedExistingText && onUpdateExistingText && onDeleteExistingText) {
+    return (
+      <div className="editor-context-bar context-bar-existing" role="toolbar" aria-label="Edit Existing PDF Text">
+        <span className="context-label existing-badge">Original Text:</span>
+
+        {/* Inline Text Content Input */}
+        <input
+          type="text"
+          className="context-text-input"
+          value={selectedExistingText.text}
+          onChange={(e) =>
+            onUpdateExistingText({
+              ...selectedExistingText,
+              text: e.target.value,
+              isModified: true,
+            })
+          }
+          placeholder="Edit text content..."
+          title="Edit existing text"
+        />
+
+        {/* Font Family Fallback */}
+        <select
+          className="context-select"
+          value={selectedExistingText.fontFamily}
+          onChange={(e) =>
+            onUpdateExistingText({
+              ...selectedExistingText,
+              fontFamily: e.target.value as StandardFontFamily,
+              isModified: true,
+            })
+          }
+          title="Font Family"
+        >
+          <option value="Helvetica">Helvetica</option>
+          <option value="TimesRoman">Times Roman</option>
+          <option value="Courier">Courier</option>
+        </select>
+
+        {/* Font Size */}
+        <select
+          className="context-select"
+          value={selectedExistingText.fontSize}
+          onChange={(e) =>
+            onUpdateExistingText({
+              ...selectedExistingText,
+              fontSize: parseInt(e.target.value, 10),
+              isModified: true,
+            })
+          }
+          title="Font Size"
+        >
+          {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 40].map((s) => (
+            <option key={s} value={s}>
+              {s} pt
+            </option>
+          ))}
+        </select>
+
+        {/* Bold / Italic */}
+        <button
+          type="button"
+          className={`context-icon-btn ${selectedExistingText.isBold ? 'active' : ''}`}
+          onClick={() =>
+            onUpdateExistingText({
+              ...selectedExistingText,
+              isBold: !selectedExistingText.isBold,
+              isModified: true,
+            })
+          }
+          title="Bold"
+        >
+          <Bold size={15} />
+        </button>
+
+        <button
+          type="button"
+          className={`context-icon-btn ${selectedExistingText.isItalic ? 'active' : ''}`}
+          onClick={() =>
+            onUpdateExistingText({
+              ...selectedExistingText,
+              isItalic: !selectedExistingText.isItalic,
+              isModified: true,
+            })
+          }
+          title="Italic"
+        >
+          <Italic size={15} />
+        </button>
+
+        {/* Color Palette */}
+        <div className="context-color-dots">
+          {COLOR_PALETTE.map((c) => (
+            <button
+              key={c.hex}
+              type="button"
+              className={`color-dot ${selectedExistingText.color === c.hex ? 'selected' : ''}`}
+              style={{ backgroundColor: c.hex }}
+              onClick={() =>
+                onUpdateExistingText({
+                  ...selectedExistingText,
+                  color: c.hex,
+                  isModified: true,
+                })
+              }
+              title={c.label}
+            />
+          ))}
+        </div>
+
+        {/* Font subsetting note */}
+        {selectedExistingText.isSubsetted && (
+          <span className="context-hint-pill" title="Original font is subsetted. Standard embedded font is used for clean replacement.">
+            <Info size={13} /> Font subsetted
+          </span>
+        )}
+
+        <div className="context-divider" />
+
+        {/* Delete Text Button (True Stream Removal) */}
+        <button
+          type="button"
+          className="context-btn-danger"
+          onClick={() => onDeleteExistingText(selectedExistingText.id)}
+          title="Permanently delete this text from the PDF content stream"
+        >
+          <Trash2 size={14} />
+          <span>Delete Text</span>
+        </button>
+      </div>
+    );
+  }
+
+  // 2. Existing PDF Image Selected (Phase 2)
+  if (selectedExistingImage && onReplaceExistingImage && onDeleteExistingImage) {
+    return (
+      <div className="editor-context-bar context-bar-existing" role="toolbar" aria-label="Edit Existing PDF Image">
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              onReplaceExistingImage(selectedExistingImage.id, file);
+              e.target.value = '';
+            }
+          }}
+        />
+
+        <span className="context-label existing-badge">Embedded Image:</span>
+        <span className="context-dim-text">
+          {selectedExistingImage.width} × {selectedExistingImage.height} pt
+        </span>
+
+        <button
+          type="button"
+          className="context-btn-action"
+          onClick={() => imageInputRef.current?.click()}
+          title="Replace with new PNG or JPG image"
+        >
+          <Upload size={14} />
+          <span>Replace Image</span>
+        </button>
+
+        <div className="context-divider" />
+
+        <button
+          type="button"
+          className="context-btn-danger"
+          onClick={() => onDeleteExistingImage(selectedExistingImage.id)}
+          title="Permanently remove image from PDF stream"
+        >
+          <Trash2 size={14} />
+          <span>Delete Image</span>
+        </button>
+      </div>
+    );
+  }
+
   if (!selectedObject) return null;
 
   return (

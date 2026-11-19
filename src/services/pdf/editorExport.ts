@@ -21,8 +21,10 @@ import {
   NoteEditorObject,
   SignatureEditorObject,
   StandardFontFamily,
+  ContentEditState,
 } from '../../types/editor';
 import { hexToPdfRgb, toPdfLibCoordinates } from './editorCoordinates';
+import { applyContentStreamEdits } from './contentEditorEngine';
 import { toBlob } from '../../utils/file';
 
 /**
@@ -490,7 +492,8 @@ async function drawSignatureOnPage(
 export async function exportEditedPdf(
   originalPdfData: ArrayBuffer | Uint8Array,
   objects: EditorObject[],
-  onProgress?: (current: number, total: number, message: string) => void
+  onProgress?: (current: number, total: number, message: string) => void,
+  contentEdits?: ContentEditState
 ): Promise<Blob> {
   onProgress?.(1, 10, 'Loading original PDF document...');
 
@@ -504,6 +507,19 @@ export async function exportEditedPdf(
     }
   } catch {
     throw new Error('PDF document buffer is invalid or detached. Please reload your document.');
+  }
+
+  // Phase 2: If there are genuine content stream edits (text edits/deletions, image replacements),
+  // rewrite content streams and XObjects first, preserving 100% vector document integrity.
+  if (
+    contentEdits &&
+    (Object.keys(contentEdits.modifiedTexts).length > 0 ||
+      Object.keys(contentEdits.modifiedImages).length > 0)
+  ) {
+    onProgress?.(2, 10, 'Rewriting PDF content streams...');
+    safeBytes = await applyContentStreamEdits(safeBytes, contentEdits, (msg) =>
+      onProgress?.(2, 10, msg)
+    );
   }
 
   const pdfDoc = await PDFDocument.load(safeBytes, { ignoreEncryption: true });

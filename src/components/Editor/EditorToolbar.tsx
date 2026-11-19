@@ -12,6 +12,9 @@ import {
   StickyNote,
   FileSignature,
   ChevronDown,
+  Edit3,
+  Search,
+  Columns,
 } from 'lucide-react';
 import { EditorToolMode } from '../../types/editor';
 import './EditorToolbar.css';
@@ -21,6 +24,9 @@ interface EditorToolbarProps {
   onSelectMode: (mode: EditorToolMode) => void;
   onInsertImage: (file: File) => void;
   onOpenSignatureModal: () => void;
+  onOpenFindReplace?: () => void;
+  onOpenBeforeAfter?: () => void;
+  hasContentModifications?: boolean;
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({
@@ -28,6 +34,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onSelectMode,
   onInsertImage,
   onOpenSignatureModal,
+  onOpenFindReplace,
+  onOpenBeforeAfter,
+  hasContentModifications = false,
 }) => {
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -68,6 +77,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       >
         <MousePointer size={18} />
         <span className="toolbar-btn-text">Select</span>
+      </button>
+
+      {/* 1b. Phase 2: Edit Existing Content */}
+      <button
+        type="button"
+        className={`toolbar-btn toolbar-btn-content ${activeMode === 'edit-content' ? 'active' : ''}`}
+        onClick={() => onSelectMode('edit-content')}
+        title="Edit Existing PDF Text & Images"
+        aria-label="Edit Content tool"
+      >
+        <Edit3 size={18} />
+        <span className="toolbar-btn-text">Edit Content</span>
       </button>
 
       <div className="toolbar-separator" />
@@ -216,6 +237,36 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <FileSignature size={18} />
         <span className="toolbar-btn-text">Sign</span>
       </button>
+
+      {(onOpenFindReplace || onOpenBeforeAfter) && <div className="toolbar-separator" />}
+
+      {/* 9. Find & Replace */}
+      {onOpenFindReplace && (
+        <button
+          type="button"
+          className="toolbar-btn"
+          onClick={onOpenFindReplace}
+          title="Find & Replace in Document"
+          aria-label="Find & Replace"
+        >
+          <Search size={18} />
+          <span className="toolbar-btn-text">Find</span>
+        </button>
+      )}
+
+      {/* 10. Before / After Preview */}
+      {onOpenBeforeAfter && (
+        <button
+          type="button"
+          className={`toolbar-btn ${hasContentModifications ? 'has-badge' : ''}`}
+          onClick={onOpenBeforeAfter}
+          title="Before & After Diff Preview"
+          aria-label="Before/After Diff Preview"
+        >
+          <Columns size={18} />
+          <span className="toolbar-btn-text">Compare</span>
+        </button>
+      )}
     </div>
   );
 };

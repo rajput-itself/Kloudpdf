@@ -5,6 +5,7 @@
 
 export type EditorToolMode =
   | 'select'
+  | 'edit-content'
   | 'text'
   | 'image'
   | 'rectangle'
@@ -104,9 +105,55 @@ export interface PageDimension {
   rotation: number; // 0, 90, 180, 270
 }
 
+/**
+ * Phase 2: True PDF Content Editing Types
+ */
+export interface ExistingTextItem {
+  id: string; // e.g. "p1-t3"
+  pageNumber: number; // 1-indexed
+  text: string;
+  originalText: string;
+  x: number; // PDF points from page top-left
+  y: number; // PDF points from page top-left
+  width: number;
+  height: number;
+  fontName: string;
+  fontFamily: StandardFontFamily;
+  fontSize: number;
+  color: string;
+  isBold: boolean;
+  isItalic: boolean;
+  transform: number[]; // [a, b, c, d, e, f]
+  isSubsetted: boolean;
+  isDeleted: boolean;
+  isModified: boolean;
+  unsupportedReason?: string;
+}
+
+export interface ExistingImageItem {
+  id: string; // e.g. "p1-img0"
+  pageNumber: number;
+  name: string; // XObject name e.g. "/Im1"
+  x: number; // PDF points from page top-left
+  y: number;
+  width: number;
+  height: number;
+  aspectRatio: number;
+  isDeleted: boolean;
+  isModified: boolean;
+  replacementDataUrl?: string;
+  replacementMimeType?: 'image/jpeg' | 'image/png';
+}
+
+export interface ContentEditState {
+  modifiedTexts: Record<string, ExistingTextItem>;
+  modifiedImages: Record<string, ExistingImageItem>;
+}
+
 export interface EditorHistoryState {
   objects: EditorObject[];
   selectedObjectId: string | null;
+  contentEdits?: ContentEditState;
 }
 
 export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
