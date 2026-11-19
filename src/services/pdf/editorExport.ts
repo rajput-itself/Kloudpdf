@@ -493,7 +493,20 @@ export async function exportEditedPdf(
   onProgress?: (current: number, total: number, message: string) => void
 ): Promise<Blob> {
   onProgress?.(1, 10, 'Loading original PDF document...');
-  const pdfDoc = await PDFDocument.load(originalPdfData, { ignoreEncryption: true });
+
+  // Ensure originalPdfData is safe and not detached
+  let safeBytes: Uint8Array;
+  try {
+    if (originalPdfData instanceof Uint8Array) {
+      safeBytes = new Uint8Array(originalPdfData.slice());
+    } else {
+      safeBytes = new Uint8Array(originalPdfData.slice(0));
+    }
+  } catch {
+    throw new Error('PDF document buffer is invalid or detached. Please reload your document.');
+  }
+
+  const pdfDoc = await PDFDocument.load(safeBytes, { ignoreEncryption: true });
   const fontCache = new FontCache(pdfDoc);
 
   const totalPages = pdfDoc.getPageCount();

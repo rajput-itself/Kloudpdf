@@ -72,9 +72,10 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
 
     try {
       const buffer = await selectedFile.arrayBuffer();
-      setOriginalBuffer(buffer);
+      // Keep an isolated copy for originalBuffer
+      setOriginalBuffer(buffer.slice(0));
 
-      const loadedPdf = await loadPdfDocument(buffer);
+      const loadedPdf = await loadPdfDocument(buffer.slice(0));
       setPdfDoc(loadedPdf);
 
       const numPages = loadedPdf.numPages;
@@ -357,13 +358,23 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
 
   // PDF Export
   const handleDownload = async () => {
-    if (!originalBuffer) return;
+    if (!file && !originalBuffer) return;
     setIsExporting(true);
     setErrorMessage(null);
 
     try {
+      // Re-read fresh buffer from File object if available so the buffer is guaranteed fresh and never detached
+      let bufferToExport: ArrayBuffer;
+      if (file) {
+        bufferToExport = await file.arrayBuffer();
+      } else if (originalBuffer && originalBuffer.byteLength > 0) {
+        bufferToExport = originalBuffer.slice(0);
+      } else {
+        throw new Error('Original document buffer is detached or unavailable. Please reload the document.');
+      }
+
       const exportedBlob = await exportEditedPdf(
-        originalBuffer,
+        bufferToExport,
         objects,
         (_curr, _total, msg) => setExportProgressMsg(msg)
       );
