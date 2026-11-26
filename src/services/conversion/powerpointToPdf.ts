@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import html2canvas from 'html2canvas';
 import { PDFDocument } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
+import { escapeHtml, isSafeZipPath } from '../../utils/fileSecurity';
 
 export interface PptxSlideData {
   slideNumber: number;
@@ -14,6 +15,7 @@ export interface PptxInspectionResult {
   slideCount: number;
   slides: PptxSlideData[];
   is16x9: boolean;
+  unsupportedWarnings: string[];
 }
 
 /**
@@ -59,12 +61,34 @@ export async function inspectPptx(file: File): Promise<PptxInspectionResult> {
 
   const slides: PptxSlideData[] = [];
   const parser = new DOMParser();
+  const warningsSet = new Set<string>();
+
+  // Detect charts, media, or custom embedded fonts across archive
+  zip.forEach((relativePath) => {
+    if (!isSafeZipPath(relativePath)) return;
+    if (/^ppt\/charts\//i.test(relativePath)) {
+      warningsSet.add('Embedded charts cannot be dynamically rendered in-browser.');
+    }
+    if (/^ppt\/media\/.*\.(mp4|mov|wmv|mp3|wav|m4a)$/i.test(relativePath)) {
+      warningsSet.add('Audio/video embedded media is omitted in static PDF output.');
+    }
+    if (/^ppt\/fonts\//i.test(relativePath)) {
+      warningsSet.add('Custom embedded fonts fallback to system sans-serif typography.');
+    }
+  });
 
   for (let i = 0; i < slideEntries.length; i++) {
     const entry = slideEntries[i]!;
     const slideNumber = i + 1;
     const slideXml = await entry.file.async('text');
     const slideDoc = parser.parseFromString(slideXml, 'application/xml');
+
+    if (slideDoc.querySelector('p\\:timing, timing')) {
+      warningsSet.add('Slide animations are flattened in static PDF export.');
+    }
+    if (slideDoc.querySelector('p\\:transition, transition')) {
+      warningsSet.add('Slide transitions are not applicable to static PDF export.');
+    }
 
     // Extract text paragraphs
     const paragraphs: string[] = [];
@@ -110,13 +134,15 @@ export async function inspectPptx(file: File): Promise<PptxInspectionResult> {
         const target = rel.getAttribute('Target') || '';
         const type = rel.getAttribute('Type') || '';
 
-        if (type.includes('image') || target.match(/\.(png|jpe?g|gif|webp|svg)$/i)) {
-          // Resolve relative target (e.g. "../media/image1.png" -> "ppt/media/image1.png")
-          const cleanTarget = target.replace(/^\.\.\//, 'ppt/');
-          const imageZipFile = zip.file(cleanTarget);
-          if (imageZipFile) {
-            const imgBlob = await imageZipFile.async('blob');
-            imageUrls.push(URL.createObjectURL(imgBlob));
+        if (type.includes('image') || target.match(/\.(png|jpe?g|gif|webp)$/i)) {
+          // Resolve relative target safely (e.g. "../media/image1.png" -> "ppt/media/image1.png")
+          const cleanTarget = target.startsWith('../') ? `ppt/${target.slice(3)}` : target;
+          if (isSafeZipPath(cleanTarget)) {
+            const imageZipFile = zip.file(cleanTarget);
+            if (imageZipFile) {
+              const imgBlob = await imageZipFile.async('blob');
+              imageUrls.push(URL.createObjectURL(imgBlob));
+            }
           }
         }
       }
@@ -134,7 +160,13 @@ export async function inspectPptx(file: File): Promise<PptxInspectionResult> {
     slideCount: slides.length,
     slides,
     is16x9,
+    unsupportedWarnings: Array.from(warningsSet),
   };
+}
+
+export interface PowerPointToPdfOptions {
+  slideNumbers?: number[];
+  onProgress?: (current: number, total: number) => void;
 }
 
 /**
@@ -142,9 +174,17 @@ export async function inspectPptx(file: File): Promise<PptxInspectionResult> {
  */
 export async function convertPowerPointToPdf(
   file: File,
-  onProgress?: (current: number, total: number) => void
+  onProgressOrOptions?: ((current: number, total: number) => void) | PowerPointToPdfOptions
 ): Promise<Blob> {
-  const { slides } = await inspectPptx(file);
+  const options: PowerPointToPdfOptions =
+    typeof onProgressOrOptions === 'function'
+      ? { onProgress: onProgressOrOptions }
+      : onProgressOrOptions || {};
+  const { slides: allSlides } = await inspectPptx(file);
+  const slides =
+    options.slideNumbers && options.slideNumbers.length > 0
+      ? allSlides.filter((s) => options.slideNumbers!.includes(s.slideNumber))
+      : allSlides;
 
   if (slides.length === 0) {
     throw new Error('No slides could be extracted from this PowerPoint presentation.');
@@ -173,7 +213,9 @@ export async function convertPowerPointToPdf(
   try {
     for (let i = 0; i < slides.length; i++) {
       const slide = slides[i]!;
-      onProgress?.(i + 1, slides.length);
+      options.onProgress?.(i + 1, slides.length);
+
+      const safeTitle = escapeHtml(slide.title);
 
       // Render crisp, presentation-grade slide layout
       container.innerHTML = `
@@ -182,7 +224,7 @@ export async function convertPowerPointToPdf(
           <div>
             <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #1a73e8; padding-bottom: 16px; margin-bottom: 28px;">
               <h1 style="font-size: 32px; font-weight: 700; color: #202124; margin: 0; line-height: 1.2;">
-                ${slide.title}
+                ${safeTitle}
               </h1>
               <span style="font-size: 14px; font-weight: 600; color: #5f6368;">
                 Slide ${slide.slideNumber} of ${slides.length}
@@ -200,7 +242,7 @@ export async function convertPowerPointToPdf(
                           (p) => `
                         <div style="display: flex; gap: 12px; margin-bottom: 16px; font-size: 18px; line-height: 1.6; color: #3c4043;">
                           <span style="color: #1a73e8; font-weight: bold;">•</span>
-                          <div>${p}</div>
+                          <div>${escapeHtml(p)}</div>
                         </div>
                       `
                         )
@@ -247,7 +289,7 @@ export async function convertPowerPointToPdf(
 
       const canvas = await html2canvas(container, {
         scale: 1.5,
-        useCORS: true,
+        useCORS: false,
         logging: false,
         backgroundColor: '#ffffff',
       });

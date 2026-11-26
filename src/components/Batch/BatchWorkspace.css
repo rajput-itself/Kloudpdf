@@ -165,9 +165,9 @@
 }
 
 .op-tab.active {
-  border-color: #1a73e8;
+  border-color: #174ea6;
   background-color: #e8f0fe;
-  color: #1a73e8;
+  color: #174ea6;
   font-weight: 600;
 }
 
@@ -355,15 +355,18 @@
 }
 
 .batch-item-card.status-completed {
-  border-left: 4px solid #137333;
+  border-color: #a8dab5;
+  background-color: #fbfefb;
 }
 
 .batch-item-card.status-failed {
-  border-left: 4px solid #d93025;
+  border-color: #f6aea9;
+  background-color: #fffbfa;
 }
 
 .batch-item-card.status-processing {
-  border-left: 4px solid #1a73e8;
+  border-color: #aecbfa;
+  background-color: #f8fbff;
 }
 
 .item-num {

@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Shield } from 'lucide-react';
+import { Menu, X, Shield, Moon, Sun } from 'lucide-react';
 import './Header.css';
 
 interface HeaderProps {
   onNavigateHome: () => void;
   onOpenAbout?: () => void;
   onOpenContact?: () => void;
+  onOpenFaq?: () => void;
+  theme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
   onOpenAbout,
   onOpenContact,
+  onOpenFaq,
+  theme = 'light',
+  onToggleTheme,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -69,7 +75,6 @@ export const Header: React.FC<HeaderProps> = ({
               onNavigateHome();
               setMobileMenuOpen(false);
             }}
-            aria-label="KloudPDF Home"
           >
             <div className="header-logo-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -92,9 +97,31 @@ export const Header: React.FC<HeaderProps> = ({
             <a href="#about" onClick={handleAboutClick} className="header-link">
               About
             </a>
+            {onOpenFaq && (
+              <button
+                type="button"
+                onClick={onOpenFaq}
+                className="header-link"
+                style={{ fontSize: 'inherit' }}
+              >
+                FAQ
+              </button>
+            )}
             <a href="#contact" onClick={handleContactClick} className="header-link">
               Contact
             </a>
+            {onToggleTheme && (
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="header-link"
+                aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+                style={{ display: 'inline-flex', alignItems: 'center', padding: '0.35rem' }}
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            )}
             <div className="header-privacy-badge" title="Local browser-only processing">
               <Shield size={14} className="badge-shield-icon" />
               <span>100% Local</span>
@@ -132,6 +159,27 @@ export const Header: React.FC<HeaderProps> = ({
             >
               Contact
             </button>
+            {onOpenFaq && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenFaq();
+                }}
+                className="header-mobile-link header-mobile-btn"
+              >
+                FAQ
+              </button>
+            )}
+            {onToggleTheme && (
+              <button
+                type="button"
+                onClick={onToggleTheme}
+                className="header-mobile-link header-mobile-btn"
+              >
+                {theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              </button>
+            )}
             <div className="header-mobile-badge">
               <Shield size={16} />
               <span>100% Local & Private Processing</span>

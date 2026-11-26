@@ -26,6 +26,7 @@ import { protectPdfFile } from './protect';
 import { loadPdfDocument } from './render';
 import { PDFDocument } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
+import { isSafeZipPath } from '../../utils/fileSecurity';
 
 export type BatchItemStatus =
   | 'pending'
@@ -77,9 +78,9 @@ async function unlockPdfFile(file: File, password: string): Promise<Blob> {
   } catch (err: any) {
     const msg = err?.message || String(err);
     if (msg.toLowerCase().includes('password')) {
-      throw new Error('Incorrect password. Please verify the password and try again.');
+      throw new Error('Incorrect password. Please verify the password and try again.', { cause: err });
     }
-    throw new Error(`Failed to unlock PDF: ${msg}`);
+    throw new Error(`Failed to unlock PDF: ${msg}`, { cause: err });
   }
 
   // 2. Export unlocked document using pdf-lib
@@ -398,7 +399,7 @@ export async function createBatchZip(items: BatchItem[]): Promise<Blob> {
       const subFolder = zip.folder(folderName);
       if (subFolder) {
         for (const [entryPath, zipEntry] of Object.entries(itemZip.files)) {
-          if (!zipEntry.dir) {
+          if (!zipEntry.dir && isSafeZipPath(entryPath)) {
             const entryBytes = await zipEntry.async('uint8array');
             subFolder.file(entryPath, entryBytes);
           }

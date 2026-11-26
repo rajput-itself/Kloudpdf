@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://kloudpdf.com/</loc><priority>1.0</priority></url>
+  <url><loc>https://kloudpdf.com/#/edit-pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://kloudpdf.com/#/compress-pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://kloudpdf.com/#/batch-pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://kloudpdf.com/#/merge</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/split</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/ocr-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/redact-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/pdf-to-word</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/pdf-to-excel</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/pdf-to-pptx</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/word-to-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/excel-to-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/powerpoint-to-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/html-to-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://kloudpdf.com/#/text-to-pdf</loc><priority>0.7</priority></url>
+  <url><loc>https://kloudpdf.com/#/markdown-to-pdf</loc><priority>0.7</priority></url>
+  <url><loc>https://kloudpdf.com/#/protect</loc><priority>0.8</priority></url>
+</urlset>

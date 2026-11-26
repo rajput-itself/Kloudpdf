@@ -25,8 +25,33 @@ export async function convertJpgToPdf(
     const file = files[i]!;
     options.onProgress?.(i + 1, files.length);
 
-    const buffer = await file.arrayBuffer();
-    const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+    let buffer = await file.arrayBuffer();
+    const lowerName = file.name.toLowerCase();
+    const isWebp = file.type === 'image/webp' || lowerName.endsWith('.webp');
+    let isPng = file.type === 'image/png' || lowerName.endsWith('.png');
+
+    if (isWebp && typeof document !== 'undefined') {
+      const bitmap = await createImageBitmap(file);
+      const c = document.createElement('canvas');
+      c.width = bitmap.width;
+      c.height = bitmap.height;
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(bitmap, 0, 0);
+        const pngBlob = await new Promise<Blob | null>((resolve) =>
+          c.toBlob((b) => {
+            c.width = 0;
+            c.height = 0;
+            resolve(b);
+          }, 'image/png')
+        );
+        if (pngBlob) {
+          buffer = await pngBlob.arrayBuffer();
+          isPng = true;
+        }
+      }
+      bitmap.close();
+    }
 
     let image;
     try {
@@ -40,7 +65,7 @@ export async function convertJpgToPdf(
       try {
         image = isPng ? await pdfDoc.embedJpg(buffer) : await pdfDoc.embedPng(buffer);
       } catch {
-        throw new Error(`Failed to decode image "${file.name}". Please ensure it is a valid JPG or PNG.`);
+        throw new Error(`Failed to decode image "${file.name}". Please ensure it is a valid JPG, PNG, or WebP.`);
       }
     }
 

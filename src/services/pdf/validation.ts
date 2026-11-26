@@ -114,7 +114,7 @@ export async function validatePdfStructure(
   }
 
   // 5. Deep inspection with PDF-lib and PDF.js
-  let canBeOpened = false;
+  let canBeOpened: boolean;
   let pageCount = 0;
   let isEncrypted = false;
   let hasAcroForms = false;
@@ -255,7 +255,7 @@ export async function validateExportIntegrity(
   residualFound: string[];
 }> {
   const buffer = await pdfBlob.arrayBuffer();
-  let canReopen = false;
+  let canReopen: boolean;
   let pageCount = 0;
   const residualFound: string[] = [];
 

@@ -1157,6 +1157,7 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
             pdfDoc={pdfDoc}
             pageDimensions={pageDimensions}
             zoom={zoom}
+            onZoomChange={(nextZoom) => setZoom(nextZoom)}
             activeMode={activeMode}
             objects={objects}
             selectedObjectId={selectedObjectId}

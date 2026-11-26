@@ -28,6 +28,8 @@ import {
   FileEdit,
   Minimize2,
   FolderArchive,
+  FileSpreadsheet,
+  FileType,
   LucideIcon,
 } from 'lucide-react';
 import { ToolDefinition, ToolId } from '../../types';
@@ -49,13 +51,19 @@ const ICON_MAP: Record<ToolId, LucideIcon> = {
   'remove-blank-pages': FileX,
   'booklet-maker': BookOpen,
   'jpg-to-pdf': FileImage,
+  'webp-to-pdf': FileImage,
   'pdf-to-jpg': Images,
   'pdf-to-png': Image,
   'pdf-to-webp': FileImage,
+  'pdf-to-word': FileText,
+  'pdf-to-excel': FileSpreadsheet,
+  'pdf-to-pptx': Presentation,
   'html-to-pdf': Code,
   'word-to-pdf': FileText,
   'excel-to-pdf': Table,
   'powerpoint-to-pdf': Presentation,
+  'text-to-pdf': FileType,
+  'markdown-to-pdf': Code,
   'pdf-to-text': FileText,
   'ocr-pdf': ScanText,
   'grayscale-pdf': Contrast,
@@ -78,7 +86,6 @@ export const ToolCard: React.FC<ToolCardProps> = ({ tool, onSelect }) => {
     <button
       className="tool-card"
       onClick={() => onSelect(tool.id)}
-      aria-label={`${tool.name}: ${tool.description}`}
     >
       <div className="tool-card-icon-wrapper">
         <Icon className="tool-card-icon" size={24} strokeWidth={1.75} />

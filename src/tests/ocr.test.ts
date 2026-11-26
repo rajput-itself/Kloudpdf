@@ -13,7 +13,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 // Configure Node.js worker path for test runner

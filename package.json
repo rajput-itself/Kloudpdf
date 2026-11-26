@@ -7,12 +7,24 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "esbuild src/tests/editor.test.ts src/tests/contentEditor.test.ts src/tests/ocr.test.ts src/tests/advancedEditor.test.ts src/tests/compressionAndBatch.test.ts --bundle --platform=node --format=esm --outdir=node_modules/.cache/tests --external:pdf-lib --external:tesseract.js && node node_modules/.cache/tests/editor.test.js && node node_modules/.cache/tests/contentEditor.test.js && node node_modules/.cache/tests/ocr.test.js && node node_modules/.cache/tests/advancedEditor.test.js && node node_modules/.cache/tests/compressionAndBatch.test.js"
+    "lint": "eslint src",
+    "test": "npm run test:unit",
+    "test:unit": "esbuild src/tests/editor.test.ts src/tests/contentEditor.test.ts src/tests/ocr.test.ts src/tests/advancedEditor.test.ts src/tests/compressionAndBatch.test.ts src/tests/phase6Conversions.test.ts --bundle --platform=node --format=esm --outdir=node_modules/.cache/tests --external:pdf-lib --external:tesseract.js --external:docx --external:pptxgenjs --external:xlsx && node node_modules/.cache/tests/editor.test.js && node node_modules/.cache/tests/contentEditor.test.js && node node_modules/.cache/tests/ocr.test.js && node node_modules/.cache/tests/advancedEditor.test.js && node node_modules/.cache/tests/compressionAndBatch.test.js && node node_modules/.cache/tests/phase6Conversions.test.js",
+    "test:e2e": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:mobile": "playwright test --project=mobile-pixel --project=mobile-small-320 --project=tablet-ipad",
+    "test:desktop": "playwright test --project=desktop-chrome --project=desktop-ultrawide",
+    "test:visual": "playwright test e2e/responsive-visual-perf.spec.ts",
+    "test:accessibility": "playwright test e2e/accessibility.spec.ts",
+    "test:performance": "playwright test e2e/responsive-visual-perf.spec.ts",
+    "test:report": "playwright show-report",
+    "test:all": "npm run lint && npx tsc --noEmit && npm run test:unit && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "@pdfsmaller/pdf-encrypt": "^1.2.0",
     "@types/dompurify": "^3.0.5",
     "@types/jszip": "^3.4.0",
+    "docx": "^9.16.0",
     "docx-preview": "^0.4.1",
     "dompurify": "^3.4.18",
     "html2canvas": "^1.4.1",
@@ -20,16 +32,22 @@
     "lucide-react": "^0.475.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
+    "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tesseract.js": "^7.0.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.1",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^10.15.0",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.74.0",
     "vite": "^6.0.11"
   }
 }

@@ -25,13 +25,12 @@ if (typeof window === 'undefined') {
   }
 }
 import {
-  extractPageExistingContent,
   findTextOccurrences,
   applyFindAndReplace,
   applyContentStreamEdits,
   verifyContentModification,
 } from '../services/pdf/contentEditorEngine';
-import { ContentEditState, ExistingTextItem, ExistingImageItem } from '../types/editor';
+import { ContentEditState, ExistingTextItem } from '../types/editor';
 
 // 1x1 PNG data URL for image replacement tests
 const testPng1x1 =
@@ -296,7 +295,7 @@ describe('4. Embedded Image (XObject) Deletion and Replacement', () => {
 
     // Verify image was embedded
     const loadedDoc = await PDFDocument.load(bytesWithImage);
-    const xObjectDict = loadedDoc.getPage(0).node.Resources()?.lookup(pdfjsLib.OPS ? (null as any) : undefined) || loadedDoc.getPage(0).node.Resources()?.get((PDFDocument as any).PDFName?.of?.('XObject') || (null as any));
+    const _xObjectDict = loadedDoc.getPage(0).node.Resources()?.lookup(pdfjsLib.OPS ? (null as any) : undefined) || loadedDoc.getPage(0).node.Resources()?.get((PDFDocument as any).PDFName?.of?.('XObject') || (null as any));
 
     // Delete image via content edit state
     const editState: ContentEditState = {

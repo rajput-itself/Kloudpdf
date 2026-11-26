@@ -38,6 +38,7 @@ interface EditorCanvasProps {
   selectedExistingImageId?: string | null;
   onSelectExistingText?: (id: string | null) => void;
   onSelectExistingImage?: (id: string | null) => void;
+  onZoomChange?: (newZoom: number) => void;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -58,9 +59,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   selectedExistingImageId,
   onSelectExistingText,
   onSelectExistingImage,
+  onZoomChange,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
+  const [visiblePageNumbers, setVisiblePageNumbers] = useState<Set<number>>(
+    () => new Set([1, 2])
+  );
+  const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
 
   // Interaction State
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -95,11 +101,47 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     points?: Point2D[];
   } | null>(null);
 
-  // Render PDF pages on canvas whenever zoom or document changes
+  // Track page visibility via IntersectionObserver for memory-efficient lazy page rendering
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisiblePageNumbers(new Set(pageDimensions.map((d) => d.pageNumber)));
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        setVisiblePageNumbers((prev) => {
+          let changed = false;
+          const next = new Set(prev);
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              const pNum = Number(entry.target.getAttribute('data-page-number'));
+              if (pNum && !next.has(pNum)) {
+                next.add(pNum);
+                changed = true;
+              }
+            }
+          }
+          return changed ? next : prev;
+        });
+      },
+      { root: containerRef.current, rootMargin: '600px 0px', threshold: 0.01 }
+    );
+
+    for (const dim of pageDimensions) {
+      const el = document.getElementById(`editor-page-${dim.pageNumber}`);
+      if (el) observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+  }, [pageDimensions]);
+
+  // Render visible PDF pages on canvas whenever zoom, visible set, or document changes
   useEffect(() => {
     let isCancelled = false;
 
     pageDimensions.forEach(async (dim) => {
+      if (!visiblePageNumbers.has(dim.pageNumber)) return;
       const canvas = canvasRefs.current.get(dim.pageNumber);
       if (!canvas) return;
 
@@ -117,7 +159,37 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [pdfDoc, pageDimensions, zoom]);
+  }, [pdfDoc, pageDimensions, zoom, visiblePageNumbers]);
+
+  // Mobile 2-finger pinch-to-zoom handler
+  const handleTouchStartPinch = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && onZoomChange) {
+      const dx = e.touches[0]!.clientX - e.touches[1]!.clientX;
+      const dy = e.touches[0]!.clientY - e.touches[1]!.clientY;
+      pinchStartRef.current = { dist: Math.hypot(dx, dy), zoom };
+    }
+  };
+
+  const handleTouchMovePinch = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && pinchStartRef.current && onZoomChange) {
+      const dx = e.touches[0]!.clientX - e.touches[1]!.clientX;
+      const dy = e.touches[0]!.clientY - e.touches[1]!.clientY;
+      const dist = Math.hypot(dx, dy);
+      if (pinchStartRef.current.dist > 10) {
+        const nextZoom = Math.max(
+          0.4,
+          Math.min(3.0, Number((pinchStartRef.current.zoom * (dist / pinchStartRef.current.dist)).toFixed(2)))
+        );
+        onZoomChange(nextZoom);
+      }
+    }
+  };
+
+  const handleTouchEndPinch = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length < 2) {
+      pinchStartRef.current = null;
+    }
+  };
 
   // Track page scroll to update active page thumbnail indicator
   const handleScroll = () => {
@@ -462,13 +534,19 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             <div
               key={dim.pageNumber}
               id={`editor-page-${dim.pageNumber}`}
+              data-page-number={dim.pageNumber}
               className="editor-page-card"
               style={{
                 width: `${widthPx}px`,
                 height: `${heightPx}px`,
               }}
               onMouseDown={(e) => handlePagePointerDown(dim.pageNumber, e)}
-              onTouchStart={(e) => handlePagePointerDown(dim.pageNumber, e)}
+              onTouchStart={(e) => {
+                handleTouchStartPinch(e);
+                if (e.touches.length === 1) handlePagePointerDown(dim.pageNumber, e);
+              }}
+              onTouchMove={handleTouchMovePinch}
+              onTouchEnd={handleTouchEndPinch}
             >
               {/* Page Number Tag */}
               <div className="editor-page-tag" aria-hidden="true">

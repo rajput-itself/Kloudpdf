@@ -35,7 +35,7 @@ export async function extractPdfMetadata(
       .filter(Boolean);
   }
 
-  let hasXmpMetadata = false;
+  let hasXmpMetadata: boolean;
   try {
     hasXmpMetadata = pdfDoc.catalog.has(PDFName.of('Metadata'));
   } catch {

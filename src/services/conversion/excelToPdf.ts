@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
 import { PDFDocument, PageSizes } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
+import { escapeHtml, sanitizeHtmlStrict } from '../../utils/fileSecurity';
 
 export interface ExcelWorkbookInfo {
   sheetNames: string[];
@@ -21,7 +22,8 @@ export interface ExcelToPdfOptions {
  */
 export async function parseExcelWorkbook(file: File): Promise<ExcelWorkbookInfo> {
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+  // Never parse/execute VBA macros (bookVBA: false)
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, bookVBA: false });
   return {
     sheetNames: workbook.SheetNames,
     workbook,
@@ -29,7 +31,7 @@ export async function parseExcelWorkbook(file: File): Promise<ExcelWorkbookInfo>
 }
 
 /**
- * Extracts a stylized HTML table for a given sheet name.
+ * Extracts a stylized, XSS-sanitized HTML table for a given sheet name.
  */
 export function getSheetHtmlTable(
   workbook: XLSX.WorkBook,
@@ -40,15 +42,17 @@ export function getSheetHtmlTable(
   if (!sheet) return '<p>No data found in worksheet.</p>';
 
   const rawHtml = XLSX.utils.sheet_to_html(sheet, { header: '', footer: '' });
+  const safeTableHtml = sanitizeHtmlStrict(rawHtml);
+  const safeSheetTitle = escapeHtml(sheetName);
 
   // Inject responsive, professional table styling
   const styledHtml = `
     <div class="excel-sheet-render" style="width: ${fitToWidth ? '100%' : 'auto'}; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <h3 style="font-size: 16px; font-weight: 600; color: #1a73e8; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #e8eaed;">
-        ${sheetName}
+        ${safeSheetTitle}
       </h3>
       <div style="width: 100%; overflow-x: auto;">
-        ${rawHtml}
+        ${safeTableHtml}
       </div>
     </div>
   `;
