@@ -36,7 +36,14 @@ export const Footer: React.FC<FooterProps> = ({
               <img
                 src={`${import.meta.env.BASE_URL}kloudpdf-logo.png`}
                 alt="KloudPDF — Complete PDF Solutions"
-                className="footer-brand-logo"
+                className="footer-brand-logo brand-logo-light"
+                width={180}
+                height={60}
+              />
+              <img
+                src={`${import.meta.env.BASE_URL}kloudpdf-logo-dark.png`}
+                alt="KloudPDF — Complete PDF Solutions"
+                className="footer-brand-logo brand-logo-dark"
                 width={180}
                 height={60}
               />
