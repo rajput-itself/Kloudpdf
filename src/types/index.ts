@@ -28,6 +28,8 @@ export type ToolId =
   | 'fill-forms'
   | 'flatten-pdf'
   | 'deskew-pdf'
+  | 'compress-pdf'
+  | 'batch-pdf'
   | 'protect';
 
 export interface ConvertedImagePageItem {

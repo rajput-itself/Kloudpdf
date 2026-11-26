@@ -359,6 +359,30 @@ export const EditorObjectLayer: React.FC<EditorObjectLayerProps> = ({
               );
             })()}
 
+            {/* 8. REDACTION OBJECT */}
+            {obj.type === 'redaction' && (
+              <div
+                className="editor-rendered-redaction"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: '#000000',
+                  border: isSelected ? '2px dashed #ef4444' : '1px solid #222222',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ffffff',
+                  fontSize: `${Math.max(9, Math.round(11 * zoom))}px`,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  userSelect: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                }}
+              >
+                REDACTED
+              </div>
+            )}
+
             {/* SELECTION BOUNDING BOX & 8 RESIZE HANDLES */}
             {isSelected && (
               <div className="selection-frame">

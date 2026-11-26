@@ -8,6 +8,7 @@ import {
   ExistingTextItem,
   ExistingImageItem,
   ContentEditState,
+  StandardFontFamily,
 } from '../../types/editor';
 import { EditorTopBar } from './EditorTopBar';
 import { EditorSidebar } from './EditorSidebar';
@@ -17,6 +18,10 @@ import { EditorCanvas } from './EditorCanvas';
 import { SignatureModal } from './SignatureModal';
 import { FindReplaceModal } from './FindReplaceModal';
 import { BeforeAfterModal } from './BeforeAfterModal';
+import { OcrCorrectionModal } from './OcrCorrectionModal';
+import { FormFillModal } from './FormFillModal';
+import { MetadataModal } from './MetadataModal';
+import { ValidationModal } from './ValidationModal';
 import { FileUpload } from '../FileUpload/FileUpload';
 import { loadPdfDocument, renderPageToDataUrl } from '../../services/pdf/render';
 import { exportEditedPdf } from '../../services/pdf/editorExport';
@@ -25,8 +30,11 @@ import {
   findTextOccurrences,
   applyFindAndReplace,
 } from '../../services/pdf/contentEditorEngine';
+import { inspectPdfForm } from '../../services/pdf/forms';
+import { flattenPdfDocument } from '../../services/pdf/flatten';
+import { detectScannedPage, OcrLineItem } from '../../services/pdf/ocr';
 import { downloadBlob } from '../../utils/file';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ScanText } from 'lucide-react';
 import './PDFEditorWorkspace.css';
 
 interface PDFEditorWorkspaceProps {
@@ -50,6 +58,8 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   // Document state
   const [file, setFile] = useState<File | null>(initialFile || null);
   const [originalBuffer, setOriginalBuffer] = useState<ArrayBuffer | null>(null);
+  const [originalPdfBytes, setOriginalPdfBytes] = useState<Uint8Array | null>(null);
+  const originalBytesRef = useRef<Uint8Array | null>(null);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [pageDimensions, setPageDimensions] = useState<PageDimension[]>([]);
   const [pageThumbnails, setPageThumbnails] = useState<Record<number, string>>({});
@@ -60,6 +70,13 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return typeof window !== 'undefined' ? window.innerWidth < 900 : false;
   });
+
+  // Phase 4: Form, Metadata, Validation, Toast state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isMetadataModalOpen, setIsMetadataModalOpen] = useState(false);
+  const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+  const [hasAcroForm, setHasAcroForm] = useState(false);
+  const [actionToast, setActionToast] = useState<string | null>(null);
 
   // Editing state (Phase 1)
   const [activeMode, setActiveMode] = useState<EditorToolMode>('select');
@@ -84,6 +101,10 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   // Before & After state
   const [isBeforeAfterOpen, setIsBeforeAfterOpen] = useState(false);
 
+  // OCR Scanned Text Modal state (Phase 3)
+  const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
+  const [isScannedPageDetected, setIsScannedPageDetected] = useState(false);
+
   // Undo / Redo History (tracks both overlay objects and genuine content edits)
   const [past, setPast] = useState<HistorySnapshot[]>([]);
   const [future, setFuture] = useState<HistorySnapshot[]>([]);
@@ -97,18 +118,18 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   // File loading lock
   const isLoadingRef = useRef(false);
 
-  // Load and parse PDF document
-  const loadDocument = useCallback(async (selectedFile: File) => {
-    if (isLoadingRef.current) return;
+  // Load and parse PDF document from in-memory byte buffer
+  const loadDocumentFromBytes = useCallback(async (bytesData: Uint8Array, filename?: string) => {
     isLoadingRef.current = true;
     setErrorMessage(null);
 
     try {
-      const buffer = await selectedFile.arrayBuffer();
-      // Keep an isolated copy for originalBuffer
-      setOriginalBuffer(buffer.slice(0));
+      const cleanBytes = new Uint8Array(bytesData.slice());
+      setOriginalPdfBytes(cleanBytes);
+      originalBytesRef.current = cleanBytes;
+      setOriginalBuffer(cleanBytes.buffer.slice(0));
 
-      const loadedPdf = await loadPdfDocument(buffer.slice(0));
+      const loadedPdf = await loadPdfDocument(cleanBytes.slice());
       setPdfDoc(loadedPdf);
 
       const numPages = loadedPdf.numPages;
@@ -126,7 +147,9 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
       }
 
       setPageDimensions(dims);
-      setFile(selectedFile);
+      if (filename) {
+        setFile(new File([cleanBytes.slice()], filename, { type: 'application/pdf' }));
+      }
       setObjects([]);
       setContentEdits({ modifiedTexts: {}, modifiedImages: {} });
       setPast([]);
@@ -134,6 +157,14 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
       setSelectedObjectId(null);
       setSelectedExistingTextId(null);
       setSelectedExistingImageId(null);
+
+      // Inspect AcroForms presence
+      try {
+        const formCheck = await inspectPdfForm(cleanBytes.slice());
+        setHasAcroForm(formCheck.fields.length > 0);
+      } catch {
+        setHasAcroForm(false);
+      }
 
       // Auto-fit initial zoom on mobile screens
       if (typeof window !== 'undefined' && window.innerWidth < 768 && dims[0]) {
@@ -185,6 +216,19 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
       isLoadingRef.current = false;
     }
   }, []);
+
+  // Load and parse PDF document from selected File
+  const loadDocument = useCallback(async (selectedFile: File) => {
+    if (isLoadingRef.current) return;
+    try {
+      const buffer = await selectedFile.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      await loadDocumentFromBytes(bytes, selectedFile.name);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to read file';
+      setErrorMessage(`Could not read file: ${msg}`);
+    }
+  }, [loadDocumentFromBytes]);
 
   // Handle initialFile prop if provided
   useEffect(() => {
@@ -581,6 +625,138 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
     }
   };
 
+  // Detect if current page is scanned (has low or no embedded text)
+  useEffect(() => {
+    let isCancelled = false;
+    if (pdfDoc) {
+      detectScannedPage(pdfDoc, currentPage).then((isScanned) => {
+        if (!isCancelled) {
+          setIsScannedPageDetected(isScanned);
+        }
+      });
+    } else {
+      setIsScannedPageDetected(false);
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [pdfDoc, currentPage]);
+
+  // Apply OCR Text Correction (inpaint background patch + replacement text)
+  const handleApplyOcrCorrection = useCallback(
+    (params: {
+      line: OcrLineItem;
+      replacementText: string;
+      fontFamily: StandardFontFamily;
+      fontSize: number;
+      color: string;
+      bgColor: string;
+    }) => {
+      const coords = params.line.pdfCoords || {
+        x: 50,
+        y: 50,
+        width: 150,
+        height: 20,
+      };
+
+      const inpaintRect: EditorObject = {
+        id: `ocr_patch_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        pageNumber: currentPage,
+        type: 'rectangle',
+        x: coords.x - 2,
+        y: coords.y - 1,
+        width: coords.width + 4,
+        height: coords.height + 2,
+        fillColor: params.bgColor || '#ffffff',
+        strokeColor: params.bgColor || '#ffffff',
+        strokeWidth: 0,
+        opacity: 1,
+      };
+
+      const textBox: EditorObject = {
+        id: `ocr_text_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        pageNumber: currentPage,
+        type: 'text',
+        x: coords.x,
+        y: coords.y,
+        width: Math.max(80, coords.width),
+        height: Math.max(20, coords.height),
+        text: params.replacementText,
+        fontSize: params.fontSize,
+        fontFamily: params.fontFamily,
+        color: params.color,
+        isBold: false,
+        isItalic: false,
+        lineHeight: 1.25,
+        textAlign: 'left',
+        opacity: 1,
+      };
+
+      commitToHistory([...objects, inpaintRect, textBox]);
+      setSelectedObjectId(textBox.id);
+      setActiveMode('select');
+    },
+    [commitToHistory, currentPage, objects]
+  );
+
+  // Convert all OCR lines on page to editable text objects
+  const handleConvertAllLinesToObjects = useCallback(
+    (
+      lines: OcrLineItem[],
+      options: { fontFamily: StandardFontFamily; color: string }
+    ) => {
+      const newItems: EditorObject[] = [...objects];
+      lines.forEach((l, idx) => {
+        if (!l.text.trim()) return;
+        const coords = l.pdfCoords || {
+          x: 50,
+          y: 50 + idx * 24,
+          width: 180,
+          height: 18,
+        };
+
+        const patch: EditorObject = {
+          id: `ocr_patch_all_${Date.now()}_${idx}`,
+          pageNumber: currentPage,
+          type: 'rectangle',
+          x: coords.x - 2,
+          y: coords.y - 1,
+          width: coords.width + 4,
+          height: coords.height + 2,
+          fillColor: '#ffffff',
+          strokeColor: '#ffffff',
+          strokeWidth: 0,
+          opacity: 1,
+        };
+
+        const txt: EditorObject = {
+          id: `ocr_text_all_${Date.now()}_${idx}`,
+          pageNumber: currentPage,
+          type: 'text',
+          x: coords.x,
+          y: coords.y,
+          width: Math.max(60, coords.width),
+          height: Math.max(20, coords.height),
+          text: l.text,
+          fontSize: Math.max(10, Math.round(coords.height * 0.8)),
+          fontFamily: options.fontFamily || 'Helvetica',
+          color: options.color || '#000000',
+          isBold: false,
+          isItalic: false,
+          lineHeight: 1.25,
+          textAlign: 'left',
+          opacity: 1,
+        };
+
+        newItems.push(patch, txt);
+      });
+
+      commitToHistory(newItems);
+      setActiveMode('select');
+    },
+    [commitToHistory, currentPage, objects]
+  );
+
   // Fit to page width
   const handleFitWidth = () => {
     if (pageDimensions.length === 0) return;
@@ -672,23 +848,33 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
 
   // PDF Export
   const handleDownload = async () => {
-    if (!file && !originalBuffer) return;
+    if (!file && !originalBuffer && !originalPdfBytes && !originalBytesRef.current) return;
     setIsExporting(true);
     setErrorMessage(null);
 
     try {
-      // Re-read fresh buffer from File object if available so the buffer is guaranteed fresh and never detached
-      let bufferToExport: ArrayBuffer;
-      if (file) {
-        bufferToExport = await file.arrayBuffer();
+      // Prioritize in-memory clean byte clone first so we NEVER call file.arrayBuffer()
+      // on a detached File object in Safari/WebKit
+      let bytesToExport: Uint8Array;
+      if (originalBytesRef.current && originalBytesRef.current.byteLength > 0) {
+        bytesToExport = new Uint8Array(originalBytesRef.current.slice());
+      } else if (originalPdfBytes && originalPdfBytes.byteLength > 0) {
+        bytesToExport = new Uint8Array(originalPdfBytes.slice());
       } else if (originalBuffer && originalBuffer.byteLength > 0) {
-        bufferToExport = originalBuffer.slice(0);
+        bytesToExport = new Uint8Array(originalBuffer.slice(0));
+      } else if (file) {
+        try {
+          const freshBuf = await file.arrayBuffer();
+          bytesToExport = new Uint8Array(freshBuf);
+        } catch {
+          throw new Error('Original document buffer is detached or unavailable. Please reload the document.');
+        }
       } else {
         throw new Error('Original document buffer is detached or unavailable. Please reload the document.');
       }
 
       const exportedBlob = await exportEditedPdf(
-        bufferToExport,
+        bytesToExport,
         objects,
         (_curr, _total, msg) => setExportProgressMsg(msg),
         contentEdits
@@ -700,11 +886,60 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
       downloadBlob(exportedBlob, outputFilename);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown export error';
+      console.error('Export failed:', err);
       setErrorMessage(`Export failed: ${msg}`);
     } finally {
       setIsExporting(false);
       setExportProgressMsg('');
     }
+  };
+
+  // Phase 4: Flatten PDF Forms
+  const handleFlatten = async () => {
+    let bytes: Uint8Array | null = null;
+    if (originalBytesRef.current && originalBytesRef.current.byteLength > 0) {
+      bytes = new Uint8Array(originalBytesRef.current.slice());
+    } else if (originalPdfBytes && originalPdfBytes.byteLength > 0) {
+      bytes = new Uint8Array(originalPdfBytes.slice());
+    } else if (originalBuffer && originalBuffer.byteLength > 0) {
+      bytes = new Uint8Array(originalBuffer.slice(0));
+    }
+    if (!bytes) {
+      setErrorMessage('No active document available to flatten.');
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      setExportProgressMsg('Flattening interactive form fields into static artwork...');
+      const flatBlob = await flattenPdfDocument(bytes);
+      const newBuf = await flatBlob.arrayBuffer();
+      await loadDocumentFromBytes(new Uint8Array(newBuf), file?.name);
+      setActionToast('Document forms successfully flattened into permanent artwork!');
+      setTimeout(() => setActionToast(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Flattening failed';
+      setErrorMessage(`Failed to flatten form: ${msg}`);
+    } finally {
+      setIsExporting(false);
+      setExportProgressMsg('');
+    }
+  };
+
+  // Phase 4: Save Filled AcroForm
+  const handleSaveForm = async (newBuffer: ArrayBuffer, flattened: boolean) => {
+    const newBytes = new Uint8Array(newBuffer);
+    await loadDocumentFromBytes(newBytes, file?.name);
+    setActionToast(flattened ? 'Form flattened into static artwork!' : 'Form values saved!');
+    setTimeout(() => setActionToast(null), 4000);
+  };
+
+  // Phase 4: Save Modified / Sanitized Metadata
+  const handleSaveMetadata = async (newBuffer: ArrayBuffer) => {
+    const newBytes = new Uint8Array(newBuffer);
+    await loadDocumentFromBytes(newBytes, file?.name);
+    setActionToast('Document metadata updated!');
+    setTimeout(() => setActionToast(null), 4000);
   };
 
   // Scroll to selected page from sidebar thumbnail
@@ -817,7 +1052,21 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
         onResetEdits={handleResetEdits}
         isExporting={isExporting}
         hasEdits={hasEdits}
+        onOpenOcr={() => setIsOcrModalOpen(true)}
+        isScannedDetected={isScannedPageDetected}
+        onOpenFormFill={() => setIsFormModalOpen(true)}
+        hasForm={hasAcroForm}
+        onFlatten={handleFlatten}
+        onOpenMetadata={() => setIsMetadataModalOpen(true)}
+        onOpenValidation={() => setIsValidationModalOpen(true)}
       />
+
+      {/* Action Success Toast */}
+      {actionToast && (
+        <div className="editor-toast-success">
+          <span>{actionToast}</span>
+        </div>
+      )}
 
       {/* Editor Body */}
       <div className="pdf-editor-body">
@@ -881,6 +1130,25 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
             <div className="editor-toast-error">
               <AlertCircle size={16} />
               <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Scanned Page Detection Banner (Phase 3) */}
+          {isScannedPageDetected && (
+            <div className="editor-scanned-notice-banner">
+              <div className="scanned-notice-left">
+                <ScanText size={16} className="text-primary" />
+                <span>
+                  <strong>Scanned Page:</strong> No selectable text detected. Recognize and edit text with OCR.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="scanned-notice-cta"
+                onClick={() => setIsOcrModalOpen(true)}
+              >
+                Recognize Text (OCR)
+              </button>
             </div>
           )}
 
@@ -961,6 +1229,57 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
           setSelectedExistingImageId(null);
         }}
       />
+
+      {/* OCR Scanned Text Correction Modal (Phase 3) */}
+      <OcrCorrectionModal
+        isOpen={isOcrModalOpen}
+        onClose={() => setIsOcrModalOpen(false)}
+        pdfDoc={pdfDoc}
+        currentPage={currentPage}
+        onApplyCorrection={handleApplyOcrCorrection}
+        onConvertAllLinesToObjects={handleConvertAllLinesToObjects}
+      />
+
+      {/* AcroForm Fill & Edit Modal (Phase 4) */}
+      {isFormModalOpen && (originalBytesRef.current || originalBuffer) && (
+        <FormFillModal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          pdfBuffer={
+            originalBytesRef.current
+              ? originalBytesRef.current.slice().buffer
+              : originalBuffer!
+          }
+          onSaveForm={handleSaveForm}
+        />
+      )}
+
+      {/* PDF Metadata Editor Modal (Phase 4) */}
+      {isMetadataModalOpen && (originalBytesRef.current || originalBuffer) && (
+        <MetadataModal
+          isOpen={isMetadataModalOpen}
+          onClose={() => setIsMetadataModalOpen(false)}
+          pdfBuffer={
+            originalBytesRef.current
+              ? originalBytesRef.current.slice().buffer
+              : originalBuffer!
+          }
+          onSaveMetadata={handleSaveMetadata}
+        />
+      )}
+
+      {/* Document Validation & Security Audit Modal (Phase 4) */}
+      {isValidationModalOpen && (originalBytesRef.current || originalBuffer) && (
+        <ValidationModal
+          isOpen={isValidationModalOpen}
+          onClose={() => setIsValidationModalOpen(false)}
+          pdfBuffer={
+            originalBytesRef.current
+              ? originalBytesRef.current.slice().buffer
+              : originalBuffer!
+          }
+        />
+      )}
     </div>
   );
 };

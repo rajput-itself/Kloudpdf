@@ -19,26 +19,52 @@ const PDFEditorWorkspace = lazy(() =>
   }))
 );
 
+const OCRWorkspace = lazy(() =>
+  import('./components/OCR/OCRWorkspace').then((module) => ({
+    default: module.OCRWorkspace,
+  }))
+);
+
+const RedactWorkspace = lazy(() =>
+  import('./components/Redaction/RedactWorkspace').then((module) => ({
+    default: module.RedactWorkspace,
+  }))
+);
+
+const CompressWorkspace = lazy(() =>
+  import('./components/Compress/CompressWorkspace').then((module) => ({
+    default: module.CompressWorkspace,
+  }))
+);
+
+const BatchWorkspace = lazy(() =>
+  import('./components/Batch/BatchWorkspace').then((module) => ({
+    default: module.BatchWorkspace,
+  }))
+);
+
+const resolveToolId = (hash: string): ToolId | null => {
+  const rawHash = hash.replace(/^#\/?/, '');
+  if (rawHash === 'edit-pdf' || rawHash === 'edit') return 'edit-pdf';
+  if (rawHash === 'ocr-pdf' || rawHash === 'ocr') return 'ocr-pdf';
+  if (rawHash === 'redact-pdf' || rawHash === 'redact') return 'redact-pdf';
+  if (rawHash === 'compress-pdf' || rawHash === 'compress') return 'compress-pdf';
+  if (rawHash === 'batch-pdf' || rawHash === 'batch') return 'batch-pdf';
+  return TOOLS.some((t) => t.id === rawHash) ? (rawHash as ToolId) : null;
+};
+
 export default function App() {
   const [currentToolId, setCurrentToolId] = useState<ToolId | null>(() => {
-    const rawHash = window.location.hash.replace(/^#\/?/, '');
-    if (rawHash === 'edit-pdf' || rawHash === 'edit') return 'edit-pdf';
-    return TOOLS.some((t) => t.id === rawHash) ? (rawHash as ToolId) : null;
+    return resolveToolId(window.location.hash);
   });
 
+  const [editorInitialFile, setEditorInitialFile] = useState<File | null>(null);
   const [modalType, setModalType] = useState<'about' | 'contact' | 'privacy' | 'terms' | null>(null);
 
   // Synchronize hash with state for browser history and direct bookmarks
   useEffect(() => {
     const handleHashChange = () => {
-      const rawHash = window.location.hash.replace(/^#\/?/, '');
-      if (rawHash === 'edit-pdf' || rawHash === 'edit') {
-        setCurrentToolId('edit-pdf');
-      } else if (TOOLS.some((t) => t.id === rawHash)) {
-        setCurrentToolId(rawHash as ToolId);
-      } else {
-        setCurrentToolId(null);
-      }
+      setCurrentToolId(resolveToolId(window.location.hash));
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -61,7 +87,11 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      {selectedTool?.id !== 'edit-pdf' && (
+      {selectedTool?.id !== 'edit-pdf' &&
+        selectedTool?.id !== 'ocr-pdf' &&
+        selectedTool?.id !== 'redact-pdf' &&
+        selectedTool?.id !== 'compress-pdf' &&
+        selectedTool?.id !== 'batch-pdf' && (
         <Header
           onNavigateHome={handleNavigateHome}
           onOpenAbout={() => setModalType('about')}
@@ -92,7 +122,119 @@ export default function App() {
                 </div>
               }
             >
-              <PDFEditorWorkspace tool={selectedTool} onBack={handleNavigateHome} />
+              <PDFEditorWorkspace
+                tool={selectedTool}
+                onBack={handleNavigateHome}
+                initialFile={editorInitialFile || undefined}
+              />
+            </Suspense>
+          ) : selectedTool.id === 'ocr-pdf' ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80vh',
+                    gap: '1rem',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <Loader2 size={36} className="btn-spinner" />
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                    Loading OCR PDF Workspace...
+                  </p>
+                </div>
+              }
+            >
+              <OCRWorkspace
+                tool={selectedTool}
+                onBack={handleNavigateHome}
+                onOpenInEditor={(file) => {
+                  setEditorInitialFile(file);
+                  handleSelectTool('edit-pdf');
+                }}
+              />
+            </Suspense>
+          ) : selectedTool.id === 'redact-pdf' ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80vh',
+                    gap: '1rem',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <Loader2 size={36} className="btn-spinner" />
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                    Loading Redaction Workspace...
+                  </p>
+                </div>
+              }
+            >
+              <RedactWorkspace
+                tool={selectedTool}
+                onBack={handleNavigateHome}
+              />
+            </Suspense>
+          ) : selectedTool.id === 'compress-pdf' ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80vh',
+                    gap: '1rem',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <Loader2 size={36} className="btn-spinner" />
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                    Loading PDF Compressor...
+                  </p>
+                </div>
+              }
+            >
+              <CompressWorkspace
+                tool={selectedTool}
+                onBack={handleNavigateHome}
+              />
+            </Suspense>
+          ) : selectedTool.id === 'batch-pdf' ? (
+            <Suspense
+              fallback={
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80vh',
+                    gap: '1rem',
+                    color: 'var(--color-primary)',
+                  }}
+                >
+                  <Loader2 size={36} className="btn-spinner" />
+                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                    Loading Batch PDF Workspace...
+                  </p>
+                </div>
+              }
+            >
+              <BatchWorkspace
+                tool={selectedTool}
+                onBack={handleNavigateHome}
+              />
             </Suspense>
           ) : (
             <Suspense
@@ -123,7 +265,7 @@ export default function App() {
         )}
       </main>
 
-      {selectedTool?.id !== 'edit-pdf' && (
+      {selectedTool?.id !== 'edit-pdf' && selectedTool?.id !== 'ocr-pdf' && selectedTool?.id !== 'redact-pdf' && (
         <Footer
           onNavigateHome={handleNavigateHome}
           onOpenAbout={() => setModalType('about')}

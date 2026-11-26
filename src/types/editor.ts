@@ -15,7 +15,8 @@ export type EditorToolMode =
   | 'drawing'
   | 'highlight'
   | 'note'
-  | 'signature';
+  | 'signature'
+  | 'redact';
 
 export type StandardFontFamily = 'Helvetica' | 'TimesRoman' | 'Courier';
 
@@ -89,6 +90,14 @@ export interface SignatureEditorObject extends BaseEditorObject {
   strokeColor: string;
 }
 
+export interface RedactionEditorObject extends BaseEditorObject {
+  type: 'redaction';
+  color?: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+  markedText?: string;
+}
+
 export type EditorObject =
   | TextEditorObject
   | ImageEditorObject
@@ -96,7 +105,8 @@ export type EditorObject =
   | DrawingEditorObject
   | HighlightEditorObject
   | NoteEditorObject
-  | SignatureEditorObject;
+  | SignatureEditorObject
+  | RedactionEditorObject;
 
 export interface PageDimension {
   pageNumber: number;

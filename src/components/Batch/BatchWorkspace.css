@@ -1,0 +1,571 @@
+/* ==========================================================================
+   KloudPDF — Batch PDF Processing Workspace Styling
+   ========================================================================== */
+
+.batch-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+  color: #202124;
+}
+
+/* Header */
+.batch-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  padding: 0 1.5rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.batch-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.batch-title-box {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.batch-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: #202124;
+}
+
+.batch-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #f1f3f4;
+  color: #5f6368;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+}
+
+.batch-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Layout */
+.batch-body {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  flex: 1;
+  min-height: calc(100vh - 60px);
+}
+
+/* Sidebar */
+.batch-sidebar {
+  background-color: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 60px);
+}
+
+.sidebar-section-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5f6368;
+  display: block;
+}
+
+/* Presets */
+.batch-preset-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.preset-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.save-preset-btn {
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.save-preset-btn:hover {
+  text-decoration: underline;
+}
+
+.preset-select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #202124;
+}
+
+.delete-preset-btn {
+  background: none;
+  border: none;
+  color: #d93025;
+  font-size: 0.725rem;
+  text-align: right;
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+/* Operation Tabs */
+.operation-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+
+.op-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #dadce0;
+  background-color: #ffffff;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #3c4043;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.op-tab:hover:not(:disabled) {
+  border-color: #1a73e8;
+  background-color: #f8fafd;
+}
+
+.op-tab.active {
+  border-color: #1a73e8;
+  background-color: #e8f0fe;
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+/* Config Card */
+.batch-config-card {
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cfg-label {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: #3c4043;
+}
+
+.config-fields select,
+.config-fields input {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.825rem;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #202124;
+}
+
+.cfg-info-note {
+  font-size: 0.775rem;
+  color: #5f6368;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.batch-action-panel {
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+/* Right Main Area */
+.batch-main {
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  transition: background-color 0.2s ease;
+}
+
+.batch-main.drag-over {
+  background-color: #e8f0fe;
+  border: 2px dashed #1a73e8;
+}
+
+/* Progress Card */
+.batch-progress-card {
+  background-color: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.progress-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.progress-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stats-label {
+  font-size: 0.825rem;
+  color: #5f6368;
+}
+
+.stats-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #202124;
+}
+
+.clear-completed-link {
+  background: none;
+  border: none;
+  color: #1a73e8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clear-completed-link:hover {
+  text-decoration: underline;
+}
+
+.overall-progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background-color: #f1f3f4;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.overall-progress-bar-fill {
+  height: 100%;
+  background-color: #1a73e8;
+  transition: width 0.3s ease;
+}
+
+/* Empty Dropzone */
+.batch-empty-dropzone {
+  border: 2px dashed #dadce0;
+  border-radius: 12px;
+  padding: 4rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.75rem;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.batch-empty-dropzone:hover {
+  border-color: #1a73e8;
+  background-color: #f8fafd;
+}
+
+.drop-icon {
+  color: #1a73e8;
+}
+
+.batch-empty-dropzone h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0;
+  color: #202124;
+}
+
+.batch-empty-dropzone p {
+  font-size: 0.875rem;
+  color: #5f6368;
+  margin: 0;
+}
+
+/* File Items Container */
+.batch-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.batch-item-card {
+  background-color: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.batch-item-card:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.batch-item-card.status-completed {
+  border-left: 4px solid #137333;
+}
+
+.batch-item-card.status-failed {
+  border-left: 4px solid #d93025;
+}
+
+.batch-item-card.status-processing {
+  border-left: 4px solid #1a73e8;
+}
+
+.item-num {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5f6368;
+  min-width: 20px;
+}
+
+.item-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-filename {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #202124;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.item-size-badge,
+.item-pages-badge {
+  font-size: 0.725rem;
+  color: #5f6368;
+  background-color: #f1f3f4;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.item-progress-track {
+  width: 100%;
+  height: 4px;
+  background-color: #e8f0fe;
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0.2rem 0;
+}
+
+.item-progress-fill {
+  height: 100%;
+  background-color: #1a73e8;
+  transition: width 0.2s ease;
+}
+
+.item-status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-badge.completed {
+  color: #137333;
+}
+
+.status-badge.failed {
+  color: #d93025;
+}
+
+.status-badge.processing {
+  color: #1a73e8;
+}
+
+.status-badge.pending,
+.status-badge.cancelled {
+  color: #5f6368;
+}
+
+.item-duration,
+.item-processed-size {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #5f6368;
+}
+
+.item-processed-size {
+  color: #1a73e8;
+  font-weight: 600;
+}
+
+.item-error-msg {
+  font-size: 0.75rem;
+  color: #d93025;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 250px;
+}
+
+.item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.remove-item-btn {
+  background: none;
+  border: none;
+  color: #5f6368;
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.remove-item-btn:hover {
+  background-color: #fce8e6;
+  color: #d93025;
+}
+
+/* Preset Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.preset-modal-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 440px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.preset-modal-card h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #202124;
+}
+
+.modal-desc {
+  font-size: 0.825rem;
+  color: #5f6368;
+  margin: 0;
+}
+
+.modal-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #3c4043;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .batch-body {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    max-height: none;
+  }
+}

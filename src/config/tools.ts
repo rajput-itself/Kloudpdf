@@ -111,6 +111,26 @@ export const TOOLS: ToolDefinition[] = [
     acceptMultiple: false,
     actionButtonText: 'Generate Booklet',
   },
+  {
+    id: 'compress-pdf',
+    name: 'Compress PDF',
+    tagline: 'Reduce PDF file size while preserving document quality.',
+    description: 'Intelligent client-side PDF compression. Three compression levels, custom image quality & DPI settings, lossless stream optimization, and target file size.',
+    category: 'organize',
+    acceptedFileTypes: '.pdf',
+    acceptMultiple: false,
+    actionButtonText: 'Compress PDF',
+  },
+  {
+    id: 'batch-pdf',
+    name: 'Batch PDF',
+    tagline: 'Process multiple PDF files simultaneously in your browser.',
+    description: 'Batch compress, rotate, watermark, page number, convert, OCR, flatten, and protect multiple documents with a fault-tolerant queue and ZIP export.',
+    category: 'organize',
+    acceptedFileTypes: '.pdf',
+    acceptMultiple: true,
+    actionButtonText: 'Process Batch',
+  },
 
   // B. Convert PDF
   {
@@ -206,10 +226,10 @@ export const TOOLS: ToolDefinition[] = [
   {
     id: 'ocr-pdf',
     name: 'OCR PDF',
-    tagline: 'Recognize and extract text from scanned documents.',
-    description: 'Genuinely recognize scanned text using client-side Tesseract OCR and create searchable PDFs.',
+    tagline: 'Recognize and extract text from scanned documents and images.',
+    description: 'Client-side Tesseract OCR engine. Recognize scanned text, generate searchable PDFs, and export plain text in English, Hindi, and more.',
     category: 'convert',
-    acceptedFileTypes: '.pdf',
+    acceptedFileTypes: '.pdf, .jpg, .jpeg, .png, .webp',
     acceptMultiple: false,
     actionButtonText: 'Run OCR',
   },

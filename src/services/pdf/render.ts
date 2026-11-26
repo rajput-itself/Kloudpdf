@@ -11,7 +11,13 @@ const configureWorkerSrc = () => {
       return '/pdf.worker.min.js';
     }
   }
-  return 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  try {
+    const proc = (globalThis as any).process;
+    const cwd = proc && typeof proc.cwd === 'function' ? proc.cwd() : '/';
+    return new URL('./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs', 'file://' + cwd + '/').href;
+  } catch {
+    return 'https://unpkg.com/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  }
 };
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = configureWorkerSrc();

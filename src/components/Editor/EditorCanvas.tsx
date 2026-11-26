@@ -417,6 +417,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           color: '#ffeb3b',
           opacity: 0.35,
         });
+      } else if (activeMode === 'redact') {
+        const x = Math.min(startPt.x, currentPt.x);
+        const y = Math.min(startPt.y, currentPt.y);
+        const width = Math.max(30, Math.abs(currentPt.x - startPt.x));
+        const height = Math.max(16, Math.abs(currentPt.y - startPt.y));
+
+        onAddObject({
+          id: newId,
+          pageNumber,
+          type: 'redaction',
+          x,
+          y,
+          width,
+          height,
+          color: '#000000',
+          strokeColor: '#ef4444',
+          strokeWidth: 2,
+        });
       }
 
       setCreationState(null);
@@ -596,8 +614,13 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         top: `${pdfToScreen(Math.min(creationState.startPt.y, creationState.currentPt.y), zoom)}px`,
                         width: `${pdfToScreen(Math.abs(creationState.currentPt.x - creationState.startPt.x), zoom)}px`,
                         height: `${pdfToScreen(Math.abs(creationState.currentPt.y - creationState.startPt.y), zoom)}px`,
-                        backgroundColor: activeMode === 'highlight' ? 'rgba(255, 235, 59, 0.35)' : 'rgba(26, 115, 232, 0.08)',
-                        border: '1.5px dashed var(--color-primary)',
+                        backgroundColor:
+                          activeMode === 'highlight'
+                            ? 'rgba(255, 235, 59, 0.35)'
+                            : activeMode === 'redact'
+                            ? 'rgba(0, 0, 0, 0.75)'
+                            : 'rgba(26, 115, 232, 0.08)',
+                        border: activeMode === 'redact' ? '1.5px dashed #ef4444' : '1.5px dashed var(--color-primary)',
                         borderRadius: activeMode === 'circle' ? '50%' : '2px',
                       }}
                     />

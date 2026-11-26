@@ -20,6 +20,7 @@ import {
   HighlightEditorObject,
   NoteEditorObject,
   SignatureEditorObject,
+  RedactionEditorObject,
   StandardFontFamily,
   ContentEditState,
 } from '../../types/editor';
@@ -158,16 +159,16 @@ async function drawImageOnPage(
 
   try {
     if (obj.mimeType === 'image/png' || obj.dataUrl.startsWith('data:image/png')) {
-      embeddedImage = await pdfDoc.embedPng(bytes);
+      embeddedImage = await pdfDoc.embedPng(new Uint8Array(bytes.slice()));
     } else {
-      embeddedImage = await pdfDoc.embedJpg(bytes);
+      embeddedImage = await pdfDoc.embedJpg(new Uint8Array(bytes.slice()));
     }
   } catch {
     // Graceful fallback: try alternate embed if header differed
     try {
-      embeddedImage = await pdfDoc.embedPng(bytes);
+      embeddedImage = await pdfDoc.embedPng(new Uint8Array(bytes.slice()));
     } catch {
-      embeddedImage = await pdfDoc.embedJpg(bytes);
+      embeddedImage = await pdfDoc.embedJpg(new Uint8Array(bytes.slice()));
     }
   }
 
@@ -461,9 +462,9 @@ async function drawSignatureOnPage(
   const bytes = dataUrlToBytes(obj.dataUrl);
   let embeddedImage;
   try {
-    embeddedImage = await pdfDoc.embedPng(bytes);
+    embeddedImage = await pdfDoc.embedPng(new Uint8Array(bytes.slice()));
   } catch {
-    embeddedImage = await pdfDoc.embedJpg(bytes);
+    embeddedImage = await pdfDoc.embedJpg(new Uint8Array(bytes.slice()));
   }
 
   const coords = toPdfLibCoordinates(
@@ -482,6 +483,36 @@ async function drawSignatureOnPage(
     width: coords.width,
     height: coords.height,
     opacity: obj.opacity ?? 1,
+  });
+}
+
+/**
+ * Draws solid opaque black box on a PDF page for redactions.
+ */
+function drawRedactionOnPage(
+  page: PDFPage,
+  obj: RedactionEditorObject,
+  pWidth: number,
+  pHeight: number,
+  rotation: number
+): void {
+  const coords = toPdfLibCoordinates(
+    obj.x,
+    obj.y,
+    obj.width,
+    obj.height,
+    pWidth,
+    pHeight,
+    rotation
+  );
+
+  page.drawRectangle({
+    x: coords.x,
+    y: coords.y,
+    width: coords.width,
+    height: coords.height,
+    color: rgb(0, 0, 0),
+    opacity: 1,
   });
 }
 
@@ -570,6 +601,9 @@ export async function exportEditedPdf(
           break;
         case 'signature':
           await drawSignatureOnPage(pdfDoc, page, item as SignatureEditorObject, pWidth, pHeight, rotation);
+          break;
+        case 'redaction':
+          drawRedactionOnPage(page, item as RedactionEditorObject, pWidth, pHeight, rotation);
           break;
       }
     }

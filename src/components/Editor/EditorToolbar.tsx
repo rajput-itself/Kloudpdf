@@ -15,6 +15,7 @@ import {
   Edit3,
   Search,
   Columns,
+  ShieldAlert,
 } from 'lucide-react';
 import { EditorToolMode } from '../../types/editor';
 import './EditorToolbar.css';
@@ -236,6 +237,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       >
         <FileSignature size={18} />
         <span className="toolbar-btn-text">Sign</span>
+      </button>
+
+      {/* 8b. Redact */}
+      <button
+        type="button"
+        className={`toolbar-btn toolbar-btn-redact ${activeMode === 'redact' ? 'active' : ''}`}
+        onClick={() => onSelectMode('redact')}
+        title="Redact Sensitive Area"
+        aria-label="Redact tool"
+      >
+        <ShieldAlert size={18} />
+        <span className="toolbar-btn-text">Redact</span>
       </button>
 
       {(onOpenFindReplace || onOpenBeforeAfter) && <div className="toolbar-separator" />}
