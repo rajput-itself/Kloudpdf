@@ -33,7 +33,13 @@ export const Footer: React.FC<FooterProps> = ({
                 onNavigateHome();
               }}
             >
-              <span className="footer-brand-title">KloudPDF</span>
+              <img
+                src={`${import.meta.env.BASE_URL}kloudpdf-logo.png`}
+                alt="KloudPDF — Complete PDF Solutions"
+                className="footer-brand-logo"
+                width={180}
+                height={60}
+              />
             </a>
             <p className="footer-brand-tagline">PDF tools. Made simple.</p>
             <p className="footer-brand-privacy-note">

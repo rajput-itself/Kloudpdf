@@ -37,13 +37,20 @@
 
 .footer-brand {
   display: inline-block;
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
 }
 
-.footer-brand-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-text-main);
+.footer-brand-logo {
+  height: 48px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+[data-theme='dark'] .footer-brand {
+  background-color: rgba(255, 255, 255, 0.96);
+  padding: 5px 12px;
 }
 
 .footer-brand-tagline {

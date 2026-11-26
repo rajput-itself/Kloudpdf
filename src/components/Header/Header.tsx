@@ -71,8 +71,13 @@ export const Header: React.FC<HeaderProps> = ({
               setMobileMenuOpen(false);
             }}
           >
-            <span className="header-brand-mark" aria-hidden="true">K</span>
-            <span className="header-brand-name">KloudPDF</span>
+            <img
+              src={`${import.meta.env.BASE_URL}kloudpdf-logo.png`}
+              alt="KloudPDF — Complete PDF Solutions"
+              className="header-brand-logo"
+              width={162}
+              height={54}
+            />
           </a>
 
           <nav className="header-nav" aria-label="Main Navigation">

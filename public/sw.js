@@ -7,14 +7,16 @@
  * - Cleans outdated version caches cleanly on activation.
  */
 
-const CACHE_VERSION = 'kloudpdf-shell-v2';
+const CACHE_VERSION = 'kloudpdf-shell-v4';
 const SHELL_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './kloudpdf-logo.png',
+  './favicon.png',
   './favicon.svg',
-  './icon-192.svg',
-  './icon-512.svg',
+  './icon-192.png',
+  './icon-512.png',
   './pdf.worker.min.js',
 ];
 
