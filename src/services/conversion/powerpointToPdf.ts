@@ -1,8 +1,9 @@
 import JSZip from 'jszip';
-import html2canvas from 'html2canvas';
 import { PDFDocument } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
 import { escapeHtml, isSafeZipPath } from '../../utils/fileSecurity';
+import { revokeObjectUrls } from '../../utils/disposableScope';
+import { appendCanvasAsSinglePage, captureOffscreenDom } from './domToPdfPipeline';
 
 export interface PptxSlideData {
   slideNumber: number;
@@ -180,7 +181,7 @@ export async function convertPowerPointToPdf(
     typeof onProgressOrOptions === 'function'
       ? { onProgress: onProgressOrOptions }
       : onProgressOrOptions || {};
-  const { slides: allSlides } = await inspectPptx(file);
+  const { slides: allSlides, is16x9 } = await inspectPptx(file);
   const slides =
     options.slideNumbers && options.slideNumbers.length > 0
       ? allSlides.filter((s) => options.slideNumbers!.includes(s.slideNumber))
@@ -190,25 +191,12 @@ export async function convertPowerPointToPdf(
     throw new Error('No slides could be extracted from this PowerPoint presentation.');
   }
 
-  // 16:9 Landscape page dimensions in points (960 x 540 pt)
+  // Match slide aspect dimensions in points (16:9 -> 960x540, 4:3 -> 960x720)
   const pageWidth = 960;
-  const pageHeight = 540;
+  const pageHeight = is16x9 ? 540 : 720;
+  const domHeightPx = is16x9 ? 720 : 960;
 
   const pdfDoc = await PDFDocument.create();
-
-  // Create temporary slide render container
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '1280px';
-  container.style.height = '720px';
-  container.style.backgroundColor = '#ffffff';
-  container.style.boxSizing = 'border-box';
-  container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  container.style.overflow = 'hidden';
-
-  document.body.appendChild(container);
 
   try {
     for (let i = 0; i < slides.length; i++) {
@@ -216,11 +204,17 @@ export async function convertPowerPointToPdf(
       options.onProgress?.(i + 1, slides.length);
 
       const safeTitle = escapeHtml(slide.title);
-
-      // Render crisp, presentation-grade slide layout
-      container.innerHTML = `
+      const canvas = await captureOffscreenDom(
+        {
+          widthPx: 1280,
+          heightPx: domHeightPx,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          overflow: 'hidden',
+          scale: 1.5,
+        },
+        async (container) => {
+          container.innerHTML = `
         <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 48px 56px; box-sizing: border-box; background: #ffffff; border: 1px solid #e8eaed;">
-          <!-- Slide Header -->
           <div>
             <div style="display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #1a73e8; padding-bottom: 16px; margin-bottom: 28px;">
               <h1 style="font-size: 32px; font-weight: 700; color: #202124; margin: 0; line-height: 1.2;">
@@ -231,9 +225,7 @@ export async function convertPowerPointToPdf(
               </span>
             </div>
 
-            <!-- Slide Content Grid -->
             <div style="display: flex; gap: 36px; align-items: flex-start;">
-              <!-- Text content -->
               <div style="flex: 1;">
                 ${
                   slide.paragraphs.length > 0
@@ -251,7 +243,6 @@ export async function convertPowerPointToPdf(
                 }
               </div>
 
-              <!-- Embedded Images (if any) -->
               ${
                 slide.imageUrls.length > 0
                   ? `
@@ -271,7 +262,6 @@ export async function convertPowerPointToPdf(
             </div>
           </div>
 
-          <!-- Slide Footer -->
           <div style="display: flex; justify-content: space-between; font-size: 12px; color: #80868b; border-top: 1px solid #f1f3f4; padding-top: 12px;">
             <span>KloudPDF Presentation Engine</span>
             <span>Page ${slide.slideNumber}</span>
@@ -279,52 +269,21 @@ export async function convertPowerPointToPdf(
         </div>
       `;
 
-      // Allow any DOM images to decode
-      const imgElements = container.querySelectorAll('img');
-      await Promise.all(
-        Array.from(imgElements).map((img) =>
-          img.complete ? Promise.resolve() : new Promise((res) => { img.onload = res; img.onerror = res; })
-        )
+          const imgElements = container.querySelectorAll('img');
+          await Promise.all(
+            Array.from(imgElements).map((img) =>
+              img.complete ? Promise.resolve() : new Promise((res) => { img.onload = res; img.onerror = res; })
+            )
+          );
+        }
       );
 
-      const canvas = await html2canvas(container, {
-        scale: 1.5,
-        useCORS: false,
-        logging: false,
-        backgroundColor: '#ffffff',
-      });
-
-      const imageBlob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => {
-            canvas.width = 0;
-            canvas.height = 0;
-            if (b) resolve(b);
-            else reject(new Error(`Failed to render slide ${slide.slideNumber}`));
-          },
-          'image/jpeg',
-          0.92
-        );
-      });
-
-      const imageBuffer = await imageBlob.arrayBuffer();
-      const image = await pdfDoc.embedJpg(imageBuffer);
-
-      const page = pdfDoc.addPage([pageWidth, pageHeight]);
-      page.drawImage(image, {
-        x: 0,
-        y: 0,
-        width: pageWidth,
-        height: pageHeight,
-      });
-
-      // Revoke temporary slide image object URLs
-      slide.imageUrls.forEach((url) => URL.revokeObjectURL(url));
+      await appendCanvasAsSinglePage(pdfDoc, canvas, pageWidth, pageHeight, 0, 0.92);
     }
 
     const pdfBytes = await pdfDoc.save();
     return toBlob(pdfBytes, 'application/pdf');
   } finally {
-    document.body.removeChild(container);
+    revokeObjectUrls(allSlides.flatMap((s) => s.imageUrls));
   }
 }

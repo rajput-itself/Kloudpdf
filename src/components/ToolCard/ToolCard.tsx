@@ -84,16 +84,17 @@ export const ToolCard: React.FC<ToolCardProps> = ({ tool, onSelect }) => {
 
   return (
     <button
+      type="button"
       className="tool-card"
       onClick={() => onSelect(tool.id)}
     >
-      <div className="tool-card-icon-wrapper">
-        <Icon className="tool-card-icon" size={24} strokeWidth={1.75} />
-      </div>
-      <div className="tool-card-content">
+      <div className="tool-card-top">
+        <div className="tool-card-icon-badge" aria-hidden="true">
+          <Icon className="tool-card-icon" size={18} strokeWidth={1.6} />
+        </div>
         <h3 className="tool-card-title">{tool.name}</h3>
-        <p className="tool-card-desc">{tool.description}</p>
       </div>
+      <p className="tool-card-desc">{tool.description}</p>
     </button>
   );
 };

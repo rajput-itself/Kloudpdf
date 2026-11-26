@@ -34,40 +34,23 @@ import { ProcessingView } from './ProcessingView';
 import { CompletedView } from './CompletedView';
 import { Button } from '../../components/common/Button/Button';
 import { formatBytes, isValidFileType } from '../../utils/file';
+import { revokeObjectUrls } from '../../utils/disposableScope';
 import { loadPdfDocument, renderPageToCanvas } from '../../services/pdf/render';
+import { TOOL_HANDLERS } from '../../services/tools/toolRegistry';
 
-// Service operations
-import { mergePdfFiles } from '../../services/pdf/merge';
-import { splitPdfFile } from '../../services/pdf/split';
-import { organizePdfFile, PageReorderItem } from '../../services/pdf/organize';
-import { rotatePdfFile } from '../../services/pdf/rotate';
-import { convertJpgToPdf, convertPdfToJpg } from '../../services/pdf/convert';
-import { addWatermarkToPdf } from '../../services/pdf/watermark';
-import { addPageNumbersToPdf, PageNumberPosition } from '../../services/pdf/pageNumbers';
-import { protectPdfFile } from '../../services/pdf/protect';
-
-// Conversion services
-import { convertPdfToImages } from '../../services/conversion/pdfToImages';
-import { convertHtmlToPdf, HtmlPageSize, HtmlOrientation, sanitizeHtml } from '../../services/conversion/htmlToPdf';
-import { convertWordToPdf, renderDocxPreview } from '../../services/conversion/wordToPdf';
-import { convertExcelToPdf, parseExcelWorkbook, getSheetHtmlTable } from '../../services/conversion/excelToPdf';
-import { convertPowerPointToPdf, inspectPptx, PptxInspectionResult } from '../../services/conversion/powerpointToPdf';
-import { convertPdfToWord } from '../../services/conversion/pdfToWord';
-import { extractTablesFromPdf, exportTablesToSpreadsheet, ExtractedPdfTable } from '../../services/conversion/pdfToExcel';
-import { convertPdfToPptx, PptxAspectRatio, PptxConversionMode } from '../../services/conversion/pdfToPptx';
-import { convertTextOrMarkdownToPdf } from '../../services/conversion/textAndMarkdownToPdf';
-
-// Advanced PDF services
-import { extractTextFromPdf } from '../../services/pdf/textExtraction';
-import { convertPdfToGrayscale } from '../../services/pdf/grayscale';
-import { applyAnnotationsToPdf, AnnotationItem, AnnotationType } from '../../services/pdf/annotations';
-import { inspectPdfForm, saveFilledPdfForm, DetectedFormField } from '../../services/pdf/forms';
-import { flattenPdfDocument } from '../../services/pdf/flatten';
-import { analyzePdfBlankPages, removeBlankPagesFromPdf, PageBlankAnalysis } from '../../services/pdf/blankPageDetection';
-import { createBookletPdf, calculateBookletLayout } from '../../services/pdf/booklet';
-import { runOcrOnPdf } from '../../services/pdf/ocr';
-import { deskewPdfDocument, detectCanvasSkewAngle } from '../../services/pdf/deskew';
-import { applyPermanentRedaction, RedactionArea } from '../../services/pdf/redaction';
+// Metadata / preview helpers still consumed directly inside ToolWorkspace UI
+import { PageNumberPosition } from '../../services/pdf/pageNumbers';
+import { HtmlPageSize, HtmlOrientation, sanitizeHtml } from '../../services/conversion/htmlToPdf';
+import { renderDocxPreview } from '../../services/conversion/wordToPdf';
+import { parseExcelWorkbook, getSheetHtmlTable } from '../../services/conversion/excelToPdf';
+import { inspectPptx, PptxInspectionResult } from '../../services/conversion/powerpointToPdf';
+import { extractTablesFromPdf, ExtractedPdfTable } from '../../services/conversion/pdfToExcel';
+import { PptxAspectRatio, PptxConversionMode } from '../../services/conversion/pdfToPptx';
+import { AnnotationItem, AnnotationType } from '../../services/pdf/annotations';
+import { inspectPdfForm, DetectedFormField } from '../../services/pdf/forms';
+import { analyzePdfBlankPages, PageBlankAnalysis } from '../../services/pdf/blankPageDetection';
+import { calculateBookletLayout } from '../../services/pdf/booklet';
+import { detectCanvasSkewAngle } from '../../services/pdf/deskew';
 
 import './ToolWorkspace.css';
 
@@ -198,9 +181,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
   // Grayscale options
   const [grayscaleMode, setGrayscaleMode] = useState<'standard' | 'high-contrast'>('standard');
 
-  // OCR options
-  const [ocrLanguage, setOcrLanguage] = useState<'eng' | 'hin' | 'spa' | 'fra' | 'deu'>('eng');
-  const [ocrSearchablePdf, setOcrSearchablePdf] = useState(true);
+  // OCR defaults for PDF-to-Excel table extraction
+  const ocrLanguage = 'eng' as const;
+  const ocrSearchablePdf = true;
 
   // Blank pages detection
   const [blankAnalysis, setBlankAnalysis] = useState<PageBlankAnalysis[]>([]);
@@ -221,8 +204,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
   const [deskewDetectedAngle, setDeskewDetectedAngle] = useState<number>(0);
   const [deskewManualAngle, setDeskewManualAngle] = useState<number>(0);
 
-  // Redaction options & interactive canvas
-  const [redactions, setRedactions] = useState<RedactionArea[]>([]);
+  // Interactive canvas state
   const [activeInteractivePage, setActiveInteractivePage] = useState<number>(1);
   const [isDrawing, setIsDrawing] = useState(false);
   const [dragStartCoord, setDragStartCoord] = useState<{ x: number; y: number } | null>(null);
@@ -248,14 +230,15 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     };
   }, [pdfDoc]);
 
-  // Render active page canvas for interactive tools (Annotate, Redact, Deskew)
+  useEffect(() => {
+    const urls = pptxInspection?.slides.flatMap((s) => s.imageUrls) ?? [];
+    return () => revokeObjectUrls(urls);
+  }, [pptxInspection]);
+
+  // Render active page canvas for interactive tools (Annotate, Deskew)
   useEffect(() => {
     if (!pdfDoc || !interactiveCanvasRef.current) return;
-    if (
-      tool.id !== 'annotate-pdf' &&
-      tool.id !== 'redact-pdf' &&
-      tool.id !== 'deskew-pdf'
-    ) {
+    if (tool.id !== 'annotate-pdf' && tool.id !== 'deskew-pdf') {
       return;
     }
 
@@ -557,19 +540,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     if (!isDrawing || !dragStartCoord) return;
     setIsDrawing(false);
 
-    if (tool.id === 'redact-pdf' && currentDragRect && currentDragRect.w > 0.01 && currentDragRect.h > 0.01) {
-      setRedactions((prev) => [
-        ...prev,
-        {
-          id: `redact_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          pageNumber: activeInteractivePage,
-          x: currentDragRect.x,
-          y: currentDragRect.y,
-          width: currentDragRect.w,
-          height: currentDragRect.h,
-        },
-      ]);
-    } else if (tool.id === 'annotate-pdf') {
+    if (tool.id === 'annotate-pdf') {
       const newId = `ann_${Date.now()}`;
       if (activeAnnotationTool === 'freehand' && freehandPoints.length > 1) {
         setAnnotations((prev) => [
@@ -692,7 +663,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     setSelectedPptxSlides([]);
     setExtractedTables([]);
     setTableWarnings([]);
-    setRedactions([]);
     setAnnotations([]);
     setBlankAnalysis([]);
     setDetectedFormFields([]);
@@ -700,7 +670,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     setDeskewManualAngle(0);
   };
 
-  // Execute PDF / Conversion action
+  // Execute PDF / Conversion action via ToolRegistry
   const handleExecute = async () => {
     if (files.length === 0 && tool.id !== 'html-to-pdf' && tool.id !== 'text-to-pdf' && tool.id !== 'markdown-to-pdf') return;
     setErrorMessage(null);
@@ -715,536 +685,69 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
           { type: 'text/plain' }
         );
       const baseName = primaryFile.name.replace(/\.[^/.]+$/, '');
-
-      switch (tool.id) {
-        case 'merge': {
-          if (files.length < 2) {
-            throw new Error('Please add at least 2 PDF files to merge.');
-          }
-          setStatusText('Merging PDF documents...');
-          const mergedBlob = await mergePdfFiles(files, {
-            onProgress: (current, total) => setProgressDetail(`Processing document ${current} of ${total}`),
-          });
-          setResult({
-            blob: mergedBlob,
-            filename: `${baseName}_merged.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'split': {
-          setStatusText('Splitting PDF document...');
-          let splitBlob: Blob;
-          if (splitRange.trim()) {
-            splitBlob = await splitPdfFile(primaryFile, {
-              pageRangeString: splitRange,
-              onProgress: (cur, tot) => setProgressDetail(`Exporting page ${cur} of ${tot}`),
-            });
-          } else {
-            const selectedIndices = pages.filter((p) => p.selected).map((p) => p.pageNumber - 1);
-            if (selectedIndices.length === 0) {
-              throw new Error('Please specify a page range or select pages.');
-            }
-            splitBlob = await splitPdfFile(primaryFile, {
-              pageIndices: selectedIndices,
-              onProgress: (cur, tot) => setProgressDetail(`Exporting page ${cur} of ${tot}`),
-            });
-          }
-          setResult({
-            blob: splitBlob,
-            filename: `${baseName}_split.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'organize': {
-          setStatusText('Saving organized PDF...');
-          const pageConfigs: PageReorderItem[] = pages.map((p) => ({
-            originalIndex: p.pageNumber - 1,
-            rotation: p.rotation,
-          }));
-          const organizedBlob = await organizePdfFile(primaryFile, {
-            pages: pageConfigs,
-            onProgress: (cur, tot) => setProgressDetail(`Rebuilding page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: organizedBlob,
-            filename: `${baseName}_organized.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'rotate': {
-          setStatusText('Rotating PDF pages...');
-          const rotatedBlob = await rotatePdfFile(primaryFile, {
-            angle: globalRotation,
-            onProgress: (cur, tot) => setProgressDetail(`Rotating page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: rotatedBlob,
-            filename: `${baseName}_rotated.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'remove-pages': {
-          setStatusText('Removing pages from PDF...');
-          const keepIndices = pages.filter((p) => p.selected).map((p) => p.pageNumber - 1);
-          if (keepIndices.length === 0) {
-            throw new Error('You cannot remove all pages. Please keep at least one page.');
-          }
-          const cleanedBlob = await splitPdfFile(primaryFile, {
-            pageIndices: keepIndices,
-            onProgress: (cur, tot) => setProgressDetail(`Copying page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: cleanedBlob,
-            filename: `${baseName}_removed_pages.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'extract-pages': {
-          setStatusText('Extracting chosen pages...');
-          const extractIndices = pages.filter((p) => p.selected).map((p) => p.pageNumber - 1);
-          if (extractIndices.length === 0 && !splitRange.trim()) {
-            throw new Error('Please select at least one page to extract.');
-          }
-          const extractedBlob = await splitPdfFile(primaryFile, {
-            pageIndices: extractIndices.length > 0 ? extractIndices : undefined,
-            pageRangeString: extractIndices.length === 0 ? splitRange : undefined,
-            onProgress: (cur, tot) => setProgressDetail(`Extracting page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: extractedBlob,
-            filename: `${baseName}_extracted.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'remove-blank-pages': {
-          setStatusText('Removing blank pages...');
-          const pagesToRemove = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          if (pagesToRemove.length === 0) {
-            throw new Error('No blank pages selected for removal.');
-          }
-          const cleanedBlob = await removeBlankPagesFromPdf(primaryFile, pagesToRemove, (cur, tot) => {
-            setProgressDetail(`Processing page removal ${cur} of ${tot}`);
-          });
-          setResult({
-            blob: cleanedBlob,
-            filename: `${baseName}_no_blanks.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'booklet-maker': {
-          setStatusText('Generating booklet imposition...');
-          const bookletBlob = await createBookletPdf(primaryFile, {
-            paperSize: bookletPaper,
-            margin: bookletMargin,
-            gutter: bookletGutter,
-            onProgress: (cur, tot) => setProgressDetail(`Arranging sheet ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: bookletBlob,
-            filename: `${baseName}_booklet.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'jpg-to-pdf':
-        case 'webp-to-pdf': {
-          setStatusText('Converting images to PDF...');
-          const pdfBlob = await convertJpgToPdf(files, {
-            orientation: jpgOrientation,
-            margin: jpgMargin,
-            onProgress: (cur, tot) => setProgressDetail(`Converting image ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: pdfBlob,
-            filename: `${files[0]?.name.replace(/\.[^/.]+$/, '') || 'document'}_converted.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'pdf-to-jpg': {
-          setStatusText('Rendering PDF pages to JPG...');
-          const { blob, filename } = await convertPdfToJpg(primaryFile, (cur, tot) => {
-            setProgressDetail(`Rendering page ${cur} of ${tot}`);
-          });
-          setResult({
-            blob,
-            filename,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'pdf-to-png': {
-          setStatusText('Rendering PDF pages to PNG...');
-          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          const conversionResult = await convertPdfToImages(primaryFile, {
-            format: 'png',
-            scale: pngScale,
-            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (cur, tot) => setProgressDetail(`Converting page ${cur} of ${tot} to PNG`),
-          });
-          setResult({
-            blob: conversionResult.zipBlob || conversionResult.items[0]!.blob,
-            filename: conversionResult.zipFilename || conversionResult.items[0]!.filename,
-            downloadUrl: '',
-            imageItems: conversionResult.items,
-          });
-          break;
-        }
-
-        case 'pdf-to-webp': {
-          setStatusText('Compressing PDF pages to WebP...');
-          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          const conversionResult = await convertPdfToImages(primaryFile, {
-            format: 'webp',
-            quality: webpQuality,
-            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (cur, tot) => setProgressDetail(`Compressing page ${cur} of ${tot} to WebP`),
-          });
-          setResult({
-            blob: conversionResult.zipBlob || conversionResult.items[0]!.blob,
-            filename: conversionResult.zipFilename || conversionResult.items[0]!.filename,
-            downloadUrl: '',
-            imageItems: conversionResult.items,
-          });
-          break;
-        }
-
-        case 'html-to-pdf': {
-          setStatusText('Rendering HTML to PDF...');
-          const pdfBlob = await convertHtmlToPdf(htmlCode, {
-            pageSize: htmlPageSize,
-            orientation: htmlOrientation,
-            margin: htmlMargin,
-            onProgress: (cur, tot) => setProgressDetail(`Rendering document slice ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: pdfBlob,
-            filename: `${baseName || 'document'}.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'word-to-pdf': {
-          setStatusText('Converting Word document to PDF...');
-          const pdfBlob = await convertWordToPdf(primaryFile, {
-            orientation: wordOrientation,
-            margin: wordMargin,
-            onProgress: (cur, tot) => setProgressDetail(`Rendering Word page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: pdfBlob,
-            filename: `${baseName}.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'excel-to-pdf': {
-          setStatusText('Converting Excel spreadsheet to PDF...');
-          const pdfBlob = await convertExcelToPdf(primaryFile, {
-            sheetNames: selectedSheets.length > 0 ? selectedSheets : undefined,
-            orientation: excelOrientation,
-            pageSize: excelPageSize,
-            fitToWidth: excelFitToWidth,
-            onProgress: (cur, tot) => setProgressDetail(`Rendering worksheet ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: pdfBlob,
-            filename: `${baseName}.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'powerpoint-to-pdf': {
-          setStatusText('Extracting and rendering PowerPoint slides...');
-          const pdfBlob = await convertPowerPointToPdf(primaryFile, {
-            slideNumbers: selectedPptxSlides.length > 0 ? selectedPptxSlides : undefined,
-            onProgress: (cur, tot) => setProgressDetail(`Rendering slide ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: pdfBlob,
-            filename: `${baseName}.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'pdf-to-word': {
-          setStatusText('Reconstructing DOCX document...');
-          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          const wordRes = await convertPdfToWord(primaryFile, {
-            enableOcrFallback: pdfToWordOcr,
-            ocrLanguage: pdfToWordLang,
-            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (cur, tot, status) => setProgressDetail(status || `Processing page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: wordRes.blob,
-            filename: wordRes.filename,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'pdf-to-excel': {
-          setStatusText(`Generating ${excelExportFormat.toUpperCase()} spreadsheet...`);
-          let tablesToExport = extractedTables;
-          if (tablesToExport.length === 0) {
-            const extRes = await extractTablesFromPdf(primaryFile, {
-              enableOcrFallback: ocrSearchablePdf,
-              ocrLanguage,
-              onProgress: (cur, tot, st) => setProgressDetail(st || `Scanning page ${cur} of ${tot}`),
-            });
-            tablesToExport = extRes.tables;
-          }
-          const exported = exportTablesToSpreadsheet(tablesToExport, excelExportFormat, baseName);
-          setResult({
-            blob: exported.blob,
-            filename: exported.filename,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'pdf-to-pptx': {
-          setStatusText('Converting PDF pages to PowerPoint slides...');
-          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          const pptxRes = await convertPdfToPptx(primaryFile, {
-            mode: pdfToPptxMode,
-            aspectRatio: pdfToPptxAspect,
-            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (cur, tot, st) => setProgressDetail(st || `Building slide ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: pptxRes.blob,
-            filename: pptxRes.filename,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'text-to-pdf':
-        case 'markdown-to-pdf': {
-          setStatusText('Generating crisp vector PDF...');
-          const pdfBlob = await convertTextOrMarkdownToPdf(plainOrMdText, {
-            pageSize: textPageSize,
-            fontSize: textFontSize,
-            isMarkdown: tool.id === 'markdown-to-pdf',
-          });
-          setResult({
-            blob: pdfBlob,
-            filename: `${baseName || 'document'}.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'pdf-to-text': {
-          setStatusText('Extracting text content...');
-          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          const textResult = await extractTextFromPdf(primaryFile, {
-            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (cur, tot) => setProgressDetail(`Extracting text from page ${cur} of ${tot}`),
-          });
-          const textBlob = new Blob([textResult.fullText], { type: 'text/plain;charset=utf-8' });
-          setResult({
-            blob: textBlob,
-            filename: `${baseName}_text.txt`,
-            downloadUrl: '',
-            textOutput: textResult.fullText,
-          });
-          break;
-        }
-
-        case 'ocr-pdf': {
-          setStatusText('Recognizing text with OCR...');
-          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
-          const ocrRes = await runOcrOnPdf(primaryFile, {
-            language: ocrLanguage,
-            generateSearchablePdf: ocrSearchablePdf,
-            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (st: string, pr: number) => {
-              setStatusText(st);
-              setProgressDetail(`${Math.round(pr * 100)}% completed`);
-            },
-          });
-          setResult({
-            blob: ocrRes.searchablePdfBlob || new Blob([ocrRes.fullText], { type: 'text/plain;charset=utf-8' }),
-            filename: ocrRes.searchablePdfBlob ? `${baseName}_searchable.pdf` : `${baseName}_ocr.txt`,
-            downloadUrl: '',
-            textOutput: ocrRes.fullText,
-          });
-          break;
-        }
-
-        case 'grayscale-pdf': {
-          setStatusText('Converting document to grayscale...');
-          const grayBlob = await convertPdfToGrayscale(primaryFile, {
-            mode: grayscaleMode,
-            onProgress: (cur, tot) => setProgressDetail(`Converting page ${cur} of ${tot} to grayscale`),
-          });
-          setResult({
-            blob: grayBlob,
-            filename: `${baseName}_grayscale.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'annotate-pdf': {
-          if (annotations.length === 0) {
-            throw new Error('Please add at least one annotation or drawing to the document.');
-          }
-          setStatusText('Applying annotations to PDF...');
-          const annotatedBlob = await applyAnnotationsToPdf(primaryFile, annotations, (cur, tot) => {
-            setProgressDetail(`Saving annotations on page ${cur} of ${tot}`);
-          });
-          setResult({
-            blob: annotatedBlob,
-            filename: `${baseName}_annotated.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'redact-pdf': {
-          if (redactions.length === 0) {
-            throw new Error('Please define at least one redaction box on the document.');
-          }
-          setStatusText('Applying permanent redactions...');
-          const redactRes = await applyPermanentRedaction(primaryFile, redactions, {
-            onProgress: (cur: number, tot: number) => {
-              setProgressDetail(`Rasterizing and permanently redacting page ${cur} of ${tot}`);
-            },
-          });
-          setResult({
-            blob: redactRes.blob,
-            filename: `${baseName}_redacted.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'fill-forms': {
-          setStatusText('Saving filled form values...');
-          const filledBlob = await saveFilledPdfForm(primaryFile, formFieldValues, {
-            flatten: flattenOnSave,
-          });
-          setResult({
-            blob: filledBlob,
-            filename: `${baseName}_filled.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'flatten-pdf': {
-          setStatusText('Flattening PDF form fields and annotations...');
-          const flatBlob = await flattenPdfDocument(primaryFile);
-          setResult({
-            blob: flatBlob,
-            filename: `${baseName}_flattened.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'deskew-pdf': {
-          setStatusText('Deskewing pages...');
-          const deskewBlob = await deskewPdfDocument(primaryFile, {
-            manualAngle: deskewManualAngle,
-            onProgress: (cur, tot) => setProgressDetail(`Deskewing page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: deskewBlob,
-            filename: `${baseName}_deskewed.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'watermark': {
-          if (!watermarkText.trim()) {
-            throw new Error('Please enter watermark text.');
-          }
-          setStatusText('Applying watermark...');
-          const watermarkedBlob = await addWatermarkToPdf(primaryFile, {
-            text: watermarkText,
-            fontSize: watermarkSize,
-            color: watermarkColor,
-            position: watermarkPosition,
-            opacity: watermarkOpacity,
-            onProgress: (cur, tot) => setProgressDetail(`Watermarking page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: watermarkedBlob,
-            filename: `${baseName}_watermarked.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'page-numbers': {
-          setStatusText('Inserting page numbers...');
-          const numberedBlob = await addPageNumbersToPdf(primaryFile, {
-            position: pageNumberPosition,
-            format: pageNumberFormat,
-            onProgress: (cur, tot) => setProgressDetail(`Numbering page ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: numberedBlob,
-            filename: `${baseName}_numbered.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        case 'protect': {
-          if (!protectPassword) {
-            throw new Error('Please enter a password.');
-          }
-          if (protectPassword !== protectConfirm) {
-            throw new Error('Passwords do not match. Please verify your password.');
-          }
-          if (protectPassword.length < 4) {
-            throw new Error('Password must be at least 4 characters.');
-          }
-          setStatusText('Encrypting PDF document...');
-          const protectedBlob = await protectPdfFile(primaryFile, {
-            password: protectPassword,
-            onProgress: (cur, tot) => setProgressDetail(`Encrypting block ${cur} of ${tot}`),
-          });
-          setResult({
-            blob: protectedBlob,
-            filename: `${baseName}_protected.pdf`,
-            downloadUrl: '',
-          });
-          break;
-        }
-
-        default:
-          throw new Error('Unsupported tool operation.');
+      const handler = TOOL_HANDLERS[tool.id];
+      if (!handler) {
+        throw new Error('Unsupported tool operation.');
       }
 
+      const executionResult = await handler({
+        toolId: tool.id,
+        files,
+        primaryFile,
+        baseName,
+        setStatusText,
+        setProgressDetail: (detail) => setProgressDetail(detail),
+        options: {
+          pages,
+          splitRange,
+          globalRotation,
+          jpgOrientation,
+          jpgMargin,
+          pngScale,
+          webpQuality,
+          htmlCode,
+          htmlPageSize,
+          htmlOrientation,
+          htmlMargin,
+          wordOrientation,
+          wordMargin,
+          selectedSheets,
+          excelOrientation,
+          excelPageSize,
+          excelFitToWidth,
+          selectedPptxSlides,
+          pdfToWordOcr,
+          pdfToWordLang,
+          extractedTables,
+          excelExportFormat,
+          ocrSearchablePdf,
+          ocrLanguage,
+          pdfToPptxMode,
+          pdfToPptxAspect,
+          plainOrMdText,
+          textPageSize,
+          textFontSize,
+          grayscaleMode,
+          annotations,
+          formFieldValues,
+          flattenOnSave,
+          deskewManualAngle,
+          watermarkText,
+          watermarkColor,
+          watermarkPosition,
+          watermarkOpacity,
+          watermarkSize,
+          pageNumberPosition,
+          pageNumberFormat,
+          protectPassword,
+          protectConfirm,
+          bookletPaper,
+          bookletMargin,
+          bookletGutter,
+        },
+      });
+
+      setResult(executionResult);
       setProcessingState('completed');
     } catch (err: unknown) {
       console.error('Operation error:', err);
@@ -1405,7 +908,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     tool.id === 'pdf-to-text' ||
                     tool.id === 'pdf-to-word' ||
                     tool.id === 'pdf-to-pptx' ||
-                    tool.id === 'ocr-pdf' ||
                     tool.id === 'grayscale-pdf' ||
                     tool.id === 'remove-blank-pages') && (
                     <div>
@@ -1421,8 +923,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                             tool.id === 'pdf-to-webp' ||
                             tool.id === 'pdf-to-text' ||
                             tool.id === 'pdf-to-word' ||
-                            tool.id === 'pdf-to-pptx' ||
-                            tool.id === 'ocr-pdf') &&
+                            tool.id === 'pdf-to-pptx') &&
                             ` — Processing ${pages.filter((p) => p.selected).length} of ${pageCount} pages`}
                         </span>
 
@@ -1469,7 +970,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                                 tool.id === 'pdf-to-png' ||
                                 tool.id === 'pdf-to-webp' ||
                                 tool.id === 'pdf-to-text' ||
-                                tool.id === 'ocr-pdf' ||
                                 tool.id === 'remove-blank-pages'
                               }
                               showRotate={tool.id === 'organize'}
@@ -1484,13 +984,12 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     </div>
                   )}
 
-                {/* Interactive Overlay Workspace for Annotate, Redact, Deskew */}
-                {pdfDoc && (tool.id === 'annotate-pdf' || tool.id === 'redact-pdf' || tool.id === 'deskew-pdf') && (
+                {/* Interactive Overlay Workspace for Annotate & Deskew */}
+                {pdfDoc && (tool.id === 'annotate-pdf' || tool.id === 'deskew-pdf') && (
                   <div>
                     {/* Navigation Bar for Active Page */}
                     <div className="flex items-center justify-between" style={{ marginBottom: '0.75rem' }}>
                       <span className="form-label">
-                        {tool.id === 'redact-pdf' && 'Draw Black Boxes over Sensitive Text'}
                         {tool.id === 'annotate-pdf' && 'Draw & Annotate Directly on Page'}
                         {tool.id === 'deskew-pdf' && 'Page Alignment Preview'}
                       </span>
@@ -1613,28 +1112,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                           }}
                         />
 
-                        {/* Redaction box overlays for this active page */}
-                        {tool.id === 'redact-pdf' &&
-                          redactions
-                            .filter((r) => r.pageNumber === activeInteractivePage)
-                            .map((r, rIdx) => (
-                              <div
-                                key={rIdx}
-                                className="redaction-layer-box"
-                                style={{
-                                  left: `${r.x * 100}%`,
-                                  top: `${r.y * 100}%`,
-                                  width: `${r.width * 100}%`,
-                                  height: `${r.height * 100}%`,
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setRedactions((prev) => prev.filter((_, idx) => idx !== rIdx));
-                                }}
-                                title="Click to remove redaction"
-                              />
-                            ))}
-
                         {/* Annotations SVG overlay for this active page */}
                         {tool.id === 'annotate-pdf' && (
                           <svg className="annotation-svg-overlay">
@@ -1735,11 +1212,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                               width: `${currentDragRect.w * 100}%`,
                               height: `${currentDragRect.h * 100}%`,
                               backgroundColor:
-                                tool.id === 'redact-pdf'
-                                  ? 'rgba(0,0,0,0.7)'
-                                  : activeAnnotationTool === 'highlight'
-                                    ? 'rgba(251, 188, 4, 0.4)'
-                                    : 'transparent',
+                                activeAnnotationTool === 'highlight'
+                                  ? 'rgba(251, 188, 4, 0.4)'
+                                  : 'transparent',
                               border: '1px dashed #1a73e8',
                               pointerEvents: 'none',
                             }}
@@ -2279,59 +1754,6 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
               {/* Right Sidebar: Configuration & Primary Action */}
               <div className="workspace-sidebar-panel">
                 <h3 className="sidebar-heading">Configuration</h3>
-
-                {/* OCR PDF Configuration */}
-                {tool.id === 'ocr-pdf' && (
-                  <>
-                    <div className="form-group">
-                      <label className="form-label">OCR Language</label>
-                      <select
-                        className="form-select"
-                        value={ocrLanguage}
-                        onChange={(e) => setOcrLanguage(e.target.value as any)}
-                      >
-                        <option value="eng">English</option>
-                        <option value="hin">Hindi (हिंदी)</option>
-                        <option value="spa">Spanish (Español)</option>
-                        <option value="fra">French (Français)</option>
-                        <option value="deu">German (Deutsch)</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={ocrSearchablePdf}
-                          onChange={(e) => setOcrSearchablePdf(e.target.checked)}
-                        />
-                        <span className="text-sm font-medium">Generate Searchable PDF</span>
-                      </label>
-                      <span className="form-hint">
-                        Embeds an invisible selectable text layer over the scanned image.
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {/* Redact PDF Configuration */}
-                {tool.id === 'redact-pdf' && (
-                  <>
-                    <div className="form-group">
-                      <span className="form-label">Applied Redactions ({redactions.length})</span>
-                      <p className="text-xs text-secondary">
-                        Drag boxes over text on the preview to add redactions. Click a box to delete it.
-                      </p>
-                    </div>
-
-                    <div className="conversion-hint-box" style={{ borderLeftColor: '#ea4335' }}>
-                      <span style={{ fontWeight: 600, color: '#ea4335' }}>Security Verification:</span>
-                      <p style={{ margin: '4px 0 0', fontSize: '11px' }}>
-                        Redacted pages are rasterized to eliminate all underlying text stream bytes. Sensitive content cannot be recovered via copy-paste or text extraction.
-                      </p>
-                    </div>
-                  </>
-                )}
 
                 {/* Annotate PDF Configuration */}
                 {tool.id === 'annotate-pdf' && (

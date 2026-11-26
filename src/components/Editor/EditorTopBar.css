@@ -2,10 +2,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 56px;
-  background-color: #ffffff;
+  height: var(--header-height);
+  background-color: var(--color-bg-card);
   border-bottom: 1px solid var(--color-border);
-  padding: 0 1rem;
+  padding: 0 var(--space-4);
   z-index: 20;
   position: relative;
   user-select: none;
@@ -23,48 +23,49 @@
 .topbar-back-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.6rem;
-  min-height: 36px;
-  border-radius: var(--radius-md, 6px);
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 34px;
+  border-radius: var(--radius-md);
   background: none;
   border: 1px solid transparent;
   color: var(--color-text-secondary);
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   flex-shrink: 0;
 }
 
 .topbar-back-btn:hover {
   background-color: var(--color-bg-subtle);
   color: var(--color-text-main);
-  border-color: var(--color-border-subtle);
+  border-color: var(--color-border);
 }
 
 .topbar-divider {
   width: 1px;
-  height: 24px;
-  background-color: var(--color-border-subtle);
-  margin: 0 0.25rem;
+  height: 22px;
+  background-color: var(--color-border);
+  margin: 0 4px;
   flex-shrink: 0;
 }
 
 .topbar-doc-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  max-width: 220px;
+  gap: 8px;
+  max-width: 240px;
   min-width: 0;
 }
 
 .doc-icon {
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
 .doc-title {
-  font-size: 0.875rem;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--color-text-main);
   white-space: nowrap;
@@ -73,14 +74,13 @@
 }
 
 .doc-unsaved-badge {
-  font-size: 0.6875rem;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  background-color: #e8f0fe;
+  background-color: var(--color-primary-light);
   color: var(--color-primary);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 
@@ -89,10 +89,10 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  background-color: var(--color-bg-subtle);
+  background-color: var(--color-bg);
   padding: 2px 4px;
-  border-radius: var(--radius-md, 6px);
-  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
@@ -100,20 +100,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .topbar-icon-btn:hover:not(:disabled) {
-  background-color: #ffffff;
+  background-color: var(--color-bg-card);
   color: var(--color-text-main);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .topbar-icon-btn:disabled {
@@ -124,7 +124,9 @@
 .topbar-zoom-label-btn {
   background: none;
   border: none;
-  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--color-text-main);
   padding: 0 6px;
@@ -140,24 +142,24 @@
 .topbar-reset-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.6rem;
-  min-height: 36px;
-  border-radius: var(--radius-md, 6px);
+  gap: 5px;
+  padding: 5px 10px;
+  min-height: 34px;
+  border-radius: var(--radius-md);
   background: none;
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--color-border);
   color: var(--color-text-secondary);
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   flex-shrink: 0;
 }
 
 .topbar-reset-btn:hover {
-  background-color: #fee2e2;
-  color: #b91c1c;
-  border-color: #fca5a5;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .download-text-short {
@@ -171,17 +173,17 @@
 .topbar-tool-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.6rem;
-  min-height: 36px;
-  border-radius: var(--radius-md, 6px);
+  gap: 5px;
+  padding: 5px 10px;
+  min-height: 34px;
+  border-radius: var(--radius-md);
   background: none;
   border: 1px solid var(--color-border);
   color: var(--color-text-main);
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   position: relative;
   flex-shrink: 0;
 }
@@ -209,17 +211,17 @@
 .topbar-ocr-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.65rem;
-  min-height: 36px;
-  border-radius: var(--radius-md, 6px);
+  gap: 5px;
+  padding: 5px 10px;
+  min-height: 34px;
+  border-radius: var(--radius-md);
   background: none;
   border: 1px solid var(--color-border);
   color: var(--color-text-main);
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
   position: relative;
   flex-shrink: 0;
 }
@@ -238,8 +240,8 @@
 }
 
 .ocr-pulse-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   background-color: var(--color-primary);
   border-radius: 50%;
   animation: pulseDot 1.5s infinite;
@@ -251,7 +253,7 @@
     opacity: 0.7;
   }
   50% {
-    transform: scale(1.3);
+    transform: scale(1.25);
     opacity: 1;
   }
   100% {
@@ -269,9 +271,9 @@
 
 @media (max-width: 680px) {
   .editor-topbar {
-    padding: 0 0.5rem;
+    padding: 0 8px;
     height: 52px;
-    gap: 0.25rem;
+    gap: 4px;
   }
 
   .back-text,
@@ -285,7 +287,6 @@
     max-width: 100px;
   }
 
-  /* On small screens, hide desktop zoom buttons (touch pinch zoom handles it) */
   .topbar-zoom-group {
     display: none;
   }
@@ -308,6 +309,6 @@
     max-width: 75px;
   }
   .doc-title {
-    font-size: 0.8125rem;
+    font-size: 13px;
   }
 }

@@ -2,11 +2,16 @@ import { renderAsync } from 'docx-preview';
 import html2canvas from 'html2canvas';
 import { PDFDocument, PageSizes } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
+import {
+  appendCanvasAsSinglePage,
+  appendCanvasSlicesToPdf,
+} from './domToPdfPipeline';
 
 export interface WordToPdfOptions {
   orientation?: 'portrait' | 'landscape';
   margin?: number;
   onProgress?: (current: number, total: number) => void;
+  signal?: AbortSignal;
 }
 
 /**
@@ -36,7 +41,6 @@ export async function convertWordToPdf(
   const orientation = options.orientation ?? 'portrait';
   const margin = options.margin ?? 20;
 
-  // 1. Create off-screen rendering container
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.left = '-9999px';
@@ -65,125 +69,42 @@ export async function convertWordToPdf(
 
     options.onProgress?.(2, 4);
 
-    // Determine target page dimensions (A4 standard)
-    const baseWidth = PageSizes.A4[0]; // 595.28
-    const baseHeight = PageSizes.A4[1]; // 841.89
+    const baseWidth = PageSizes.A4[0];
+    const baseHeight = PageSizes.A4[1];
     const pageWidth = orientation === 'portrait' ? baseWidth : baseHeight;
     const pageHeight = orientation === 'portrait' ? baseHeight : baseWidth;
 
-    const availableWidth = pageWidth - margin * 2;
-    const availableHeight = pageHeight - margin * 2;
-
     const pdfDoc = await PDFDocument.create();
-
-    // Check if docx-preview rendered distinct page sections
     const sections = container.querySelectorAll<HTMLElement>('section.docx-render, section');
-    const hasMultipleSections = sections.length > 1;
 
-    if (hasMultipleSections) {
+    if (sections.length > 1) {
       const sectionList = Array.from(sections);
       for (let i = 0; i < sectionList.length; i++) {
-        const section = sectionList[i]!;
+        if (options.signal?.aborted) throw new Error('Conversion cancelled by user.');
         options.onProgress?.(i + 1, sectionList.length);
-
-        const canvas = await html2canvas(section, {
+        const canvas = await html2canvas(sectionList[i]!, {
           scale: 1.8,
           useCORS: false,
           logging: false,
           backgroundColor: '#ffffff',
         });
-
-        const imageBlob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob(
-            (b) => {
-              canvas.width = 0;
-              canvas.height = 0;
-              if (b) resolve(b);
-              else reject(new Error(`Failed to render Word section ${i + 1}`));
-            },
-            'image/jpeg',
-            0.95
-          );
-        });
-
-        const imageBuffer = await imageBlob.arrayBuffer();
-        const image = await pdfDoc.embedJpg(imageBuffer);
-
-        const page = pdfDoc.addPage([pageWidth, pageHeight]);
-        page.drawImage(image, {
-          x: margin,
-          y: margin,
-          width: availableWidth,
-          height: availableHeight,
-        });
+        await appendCanvasAsSinglePage(pdfDoc, canvas, pageWidth, pageHeight, margin, 0.95);
       }
     } else {
-      // Single continuous element or unified document
       const canvas = await html2canvas(container, {
         scale: 1.8,
         useCORS: false,
         logging: false,
         backgroundColor: '#ffffff',
       });
-
-      const pageAspectRatio = availableHeight / availableWidth;
-      const sliceHeightPx = Math.floor(canvas.width * pageAspectRatio);
-      const totalSlices = Math.max(1, Math.ceil(canvas.height / sliceHeightPx));
-
-      for (let sliceIndex = 0; sliceIndex < totalSlices; sliceIndex++) {
-        options.onProgress?.(sliceIndex + 1, totalSlices);
-
-        const sourceY = sliceIndex * sliceHeightPx;
-        const currentSliceHeight = Math.min(sliceHeightPx, canvas.height - sourceY);
-
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sliceHeightPx;
-
-        const ctx = sliceCanvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-          ctx.drawImage(
-            canvas,
-            0,
-            sourceY,
-            canvas.width,
-            currentSliceHeight,
-            0,
-            0,
-            canvas.width,
-            currentSliceHeight
-          );
-        }
-
-        const sliceBlob = await new Promise<Blob>((resolve, reject) => {
-          sliceCanvas.toBlob(
-            (b) => {
-              sliceCanvas.width = 0;
-              sliceCanvas.height = 0;
-              if (b) resolve(b);
-              else reject(new Error(`Failed to render page slice ${sliceIndex + 1}`));
-            },
-            'image/jpeg',
-            0.95
-          );
-        });
-
-        const sliceBuffer = await sliceBlob.arrayBuffer();
-        const image = await pdfDoc.embedJpg(sliceBuffer);
-
-        const page = pdfDoc.addPage([pageWidth, pageHeight]);
-        page.drawImage(image, {
-          x: margin,
-          y: margin,
-          width: availableWidth,
-          height: availableHeight,
-        });
-      }
-
-      canvas.width = 0;
-      canvas.height = 0;
+      await appendCanvasSlicesToPdf(pdfDoc, canvas, {
+        pageWidth,
+        pageHeight,
+        margin,
+        jpegQuality: 0.95,
+        onProgress: options.onProgress,
+        signal: options.signal,
+      });
     }
 
     const pdfBytes = await pdfDoc.save();

@@ -29,6 +29,8 @@ import {
 import { ToolDefinition } from '../../types';
 import { Button } from '../common/Button/Button';
 import { formatBytes, downloadBlob } from '../../utils/file';
+import { getDeviceCapabilities } from '../../utils/deviceLimits';
+import { ingestUserFiles } from '../../services/security/ingestFile';
 import {
   BatchItem,
   BatchProcessingOptions,
@@ -99,25 +101,16 @@ export const BatchWorkspace: React.FC<BatchWorkspaceProps> = ({
 
   // Add files to batch queue
   const handleAddFiles = async (files: FileList | File[]) => {
-    const newItems: BatchItem[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i]!;
-      if (!f.name.toLowerCase().endsWith('.pdf') && f.type !== 'application/pdf') {
-        continue;
-      }
-
-      const id = `item_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-      newItems.push({
-        id,
-        file: f,
-        name: f.name,
-        size: f.size,
-        status: 'pending',
-        progress: 0,
-        statusMessage: 'Ready',
-      });
-    }
+    const { validFiles } = await ingestUserFiles(files, '.pdf');
+    const newItems: BatchItem[] = validFiles.map((f) => ({
+      id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      file: f,
+      name: f.name,
+      size: f.size,
+      status: 'pending',
+      progress: 0,
+      statusMessage: 'Ready',
+    }));
 
     if (newItems.length === 0) return;
 
@@ -150,10 +143,11 @@ export const BatchWorkspace: React.FC<BatchWorkspaceProps> = ({
       )
     );
 
+    const { recommendedMaxConcurrency } = getDeviceCapabilities();
     const options: BatchProcessingOptions = {
       operation,
       config,
-      concurrency: 2,
+      concurrency: recommendedMaxConcurrency,
       signal: controller.signal,
       onItemUpdate: (updated) => {
         setItems((prev) =>
@@ -302,9 +296,9 @@ export const BatchWorkspace: React.FC<BatchWorkspaceProps> = ({
               size="sm"
               onClick={handleDownloadZip}
               disabled={isZipping}
-              icon={isZipping ? <Loader2 size={15} className="btn-spinner" /> : <Archive size={15} />}
+              icon={isZipping ? <Loader2 size={15} className="spin-icon" /> : <Archive size={15} />}
             >
-              {isZipping ? 'Archiving...' : `Download ZIP (${completedCount})`}
+              {isZipping ? 'Archiving…' : `Download ZIP (${completedCount})`}
             </Button>
           )}
 
@@ -358,7 +352,7 @@ export const BatchWorkspace: React.FC<BatchWorkspaceProps> = ({
               className="preset-select"
               disabled={isProcessing}
             >
-              <option value="">Choose a preset...</option>
+              <option value="">Select a preset</option>
               {presets.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} {p.isBuiltIn ? '' : '(Custom)'}
@@ -783,7 +777,7 @@ export const BatchWorkspace: React.FC<BatchWorkspaceProps> = ({
                         {item.status === 'completed' && <CheckCircle2 size={13} />}
                         {item.status === 'failed' && <AlertCircle size={13} />}
                         {item.status === 'processing' && (
-                          <Loader2 size={13} className="btn-spinner" />
+                          <Loader2 size={13} className="spin-icon" />
                         )}
                         {item.statusMessage || item.status}
                       </span>

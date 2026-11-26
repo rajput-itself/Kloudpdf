@@ -23,6 +23,7 @@ import {
 } from '../../services/pdf/ocr';
 import { loadPdfDocument, renderPageToDataUrl } from '../../services/pdf/render';
 import { downloadBlob } from '../../utils/file';
+import { revokeObjectUrls } from '../../utils/disposableScope';
 import './OCRWorkspace.css';
 
 interface OCRWorkspaceProps {
@@ -112,6 +113,11 @@ export const OCRWorkspace: React.FC<OCRWorkspaceProps> = ({
       setPageThumbnails({ 1: imgUrl });
     }
   }, []);
+
+  useEffect(() => {
+    const urls = Object.values(pageThumbnails);
+    return () => revokeObjectUrls(urls);
+  }, [pageThumbnails]);
 
   useEffect(() => {
     if (initialFile && !file) {
@@ -218,7 +224,7 @@ export const OCRWorkspace: React.FC<OCRWorkspaceProps> = ({
           <div className="ocr-upload-header">
             <h1 className="ocr-upload-title">{tool.name}</h1>
             <p className="ocr-upload-description">
-              Genuinely recognize and extract text from scanned PDFs and JPG/PNG documents using browser Web Workers.
+              Recognize and extract selectable text from scanned PDFs and JPG/PNG images using local browser Web Workers
             </p>
           </div>
 
@@ -257,14 +263,9 @@ export const OCRWorkspace: React.FC<OCRWorkspaceProps> = ({
               <FileEdit size={18} className="text-primary" />
               <div>
                 <strong>Editable in PDF Editor</strong>
-                <p>Seamlessly transfer recognized documents into KloudPDF&apos;s Visual Editor.</p>
+                <p>Open recognized documents directly inside KloudPDF’s visual editor</p>
               </div>
             </div>
-          </div>
-
-          <div className="ocr-privacy-note">
-            <span className="privacy-badge-pill">100% In-Browser Privacy</span>
-            <span>Documents never leave your device. Language traineddata is cached locally.</span>
           </div>
         </div>
       </div>

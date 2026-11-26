@@ -141,6 +141,11 @@ export async function renderPageToDataUrl(
   rotation: number = 0
 ): Promise<string> {
   const canvas = document.createElement('canvas');
-  await renderPageToCanvas(pdfDoc, pageNumber, canvas, { scale, rotation });
-  return canvas.toDataURL('image/jpeg', 0.85);
+  try {
+    await renderPageToCanvas(pdfDoc, pageNumber, canvas, { scale, rotation });
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+  }
 }

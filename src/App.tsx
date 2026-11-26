@@ -156,7 +156,7 @@ export default function App() {
           role="status"
           aria-live="polite"
           style={{
-            backgroundColor: '#1a73e8',
+            backgroundColor: 'var(--color-primary)',
             color: '#ffffff',
             padding: '0.5rem 1rem',
             fontSize: '0.85rem',
@@ -175,7 +175,7 @@ export default function App() {
             }}
             style={{
               backgroundColor: '#ffffff',
-              color: '#1a73e8',
+              color: 'var(--color-primary)',
               padding: '0.2rem 0.65rem',
               borderRadius: '4px',
               fontWeight: 600,
@@ -193,6 +193,7 @@ export default function App() {
         selectedTool?.id !== 'batch-pdf' && (
         <Header
           onNavigateHome={handleNavigateHome}
+          onSelectTool={handleSelectTool}
           onOpenAbout={() => setModalType('about')}
           onOpenContact={() => setModalType('contact')}
           onOpenFaq={() => setModalType('faq')}
@@ -204,7 +205,7 @@ export default function App() {
       <main id="main-content" className="main-content">
         {isInvalidRoute ? (
           <div style={{ textAlign: 'center', padding: '5rem 1.5rem', maxWidth: '540px', margin: '0 auto' }}>
-            <h1 style={{ fontSize: '2.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>404 — Tool Not Found</h1>
+            <h1 style={{ fontSize: '2.25rem', fontWeight: 700, letterSpacing: '-0.025em', marginBottom: '0.75rem' }}>404 — Tool Not Found</h1>
             <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>
               The requested PDF tool route does not exist. Explore all available privacy-first tools from the KloudPDF home directory.
             </p>
@@ -216,21 +217,9 @@ export default function App() {
           selectedTool.id === 'edit-pdf' ? (
             <Suspense
               fallback={
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '80vh',
-                    gap: '1rem',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  <Loader2 size={36} className="btn-spinner" />
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                    Loading PDF Editor...
-                  </p>
+                <div className="route-loader-fallback">
+                  <Loader2 size={28} className="spin-icon" />
+                  <p className="route-loader-label">Loading PDF Editor…</p>
                 </div>
               }
             >
@@ -243,21 +232,9 @@ export default function App() {
           ) : selectedTool.id === 'ocr-pdf' ? (
             <Suspense
               fallback={
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '80vh',
-                    gap: '1rem',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  <Loader2 size={36} className="btn-spinner" />
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                    Loading OCR PDF Workspace...
-                  </p>
+                <div className="route-loader-fallback">
+                  <Loader2 size={28} className="spin-icon" />
+                  <p className="route-loader-label">Loading OCR PDF Workspace…</p>
                 </div>
               }
             >
@@ -273,21 +250,9 @@ export default function App() {
           ) : selectedTool.id === 'redact-pdf' ? (
             <Suspense
               fallback={
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '80vh',
-                    gap: '1rem',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  <Loader2 size={36} className="btn-spinner" />
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                    Loading Redaction Workspace...
-                  </p>
+                <div className="route-loader-fallback">
+                  <Loader2 size={28} className="spin-icon" />
+                  <p className="route-loader-label">Loading Redaction Workspace…</p>
                 </div>
               }
             >
@@ -299,21 +264,9 @@ export default function App() {
           ) : selectedTool.id === 'compress-pdf' ? (
             <Suspense
               fallback={
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '80vh',
-                    gap: '1rem',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  <Loader2 size={36} className="btn-spinner" />
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                    Loading PDF Compressor...
-                  </p>
+                <div className="route-loader-fallback">
+                  <Loader2 size={28} className="spin-icon" />
+                  <p className="route-loader-label">Loading PDF Compressor…</p>
                 </div>
               }
             >
@@ -325,21 +278,9 @@ export default function App() {
           ) : selectedTool.id === 'batch-pdf' ? (
             <Suspense
               fallback={
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '80vh',
-                    gap: '1rem',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  <Loader2 size={36} className="btn-spinner" />
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                    Loading Batch PDF Workspace...
-                  </p>
+                <div className="route-loader-fallback">
+                  <Loader2 size={28} className="spin-icon" />
+                  <p className="route-loader-label">Loading Batch PDF Workspace…</p>
                 </div>
               }
             >
@@ -351,21 +292,9 @@ export default function App() {
           ) : (
             <Suspense
               fallback={
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '50vh',
-                    gap: '1rem',
-                    color: 'var(--color-primary)',
-                  }}
-                >
-                  <Loader2 size={36} className="btn-spinner" />
-                  <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                    Loading {selectedTool.name}...
-                  </p>
+                <div className="route-loader-fallback" style={{ minHeight: '50vh' }}>
+                  <Loader2 size={28} className="spin-icon" />
+                  <p className="route-loader-label">Loading {selectedTool.name}…</p>
                 </div>
               }
             >

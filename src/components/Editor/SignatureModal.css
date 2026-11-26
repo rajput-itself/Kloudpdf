@@ -1,10 +1,8 @@
 .sig-modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(32, 33, 36, 0.55);
+  inset: 0;
+  background-color: rgba(9, 9, 11, 0.55);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,12 +11,12 @@
 }
 
 .sig-modal-card {
-  background: #ffffff;
-  border-radius: var(--radius-lg, 8px);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
   width: 100%;
   max-width: 520px;
   max-height: 92dvh;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -30,7 +28,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.875rem 1.25rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
@@ -39,22 +37,23 @@
   align-items: center;
   gap: 0.5rem;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--text-base);
   color: var(--color-text-main);
 }
 
 .sig-close-btn {
   background: none;
   border: none;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   cursor: pointer;
   padding: 6px;
-  min-width: 36px;
-  min-height: 36px;
-  border-radius: 4px;
+  min-width: 34px;
+  min-height: 34px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .sig-close-btn:hover {
@@ -62,30 +61,29 @@
   color: var(--color-text-main);
 }
 
-/* Legal & Compliance Notice */
 .sig-legal-notice {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
   background-color: var(--color-primary-light);
-  border-bottom: 1px solid rgba(26, 115, 232, 0.2);
-  font-size: 11px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+  font-size: 11.5px;
   color: var(--color-text-main);
   line-height: 1.4;
 }
 
 .sig-tabs {
   display: flex;
-  border-bottom: 1px solid var(--color-border-subtle);
-  background-color: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-bg);
   flex-shrink: 0;
 }
 
 .sig-tab {
   flex: 1;
-  padding: 0.75rem;
-  min-height: 44px;
+  padding: 0.7rem;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,15 +91,15 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  font-size: 0.875rem;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .sig-tab.active {
-  background-color: #ffffff;
+  background-color: var(--color-bg-card);
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
   font-weight: 600;
@@ -113,14 +111,14 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Drawing Canvas */
+/* Keep crisp white paper surface for ink signature drawing */
 .sig-canvas-wrapper {
   position: relative;
   width: 100%;
   height: 180px;
-  background-color: #fbfbfb;
-  border: 1.5px dashed var(--color-border);
-  border-radius: 6px;
+  background-color: #ffffff;
+  border: 1.5px dashed var(--color-border-hover);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -133,16 +131,13 @@
 
 .sig-canvas-placeholder {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
+  color: #71717a;
+  font-size: 13px;
   text-align: center;
   padding: 0 1rem;
 }
@@ -163,7 +158,7 @@
 }
 
 .sig-label {
-  font-size: 0.8125rem;
+  font-size: 13px;
   color: var(--color-text-secondary);
   font-weight: 500;
 }
@@ -174,11 +169,11 @@
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
-  transition: transform 0.1s ease;
+  transition: transform var(--transition-fast);
 }
 
 .sig-color-dot:hover {
-  transform: scale(1.15);
+  transform: scale(1.12);
 }
 
 .sig-color-dot.selected {
@@ -186,7 +181,6 @@
   outline-offset: 2px;
 }
 
-/* Type Signature Pane */
 .sig-type-pane {
   display: flex;
   flex-direction: column;
@@ -200,26 +194,26 @@
 }
 
 .sig-type-label {
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text-main);
 }
 
 .sig-type-input {
   width: 100%;
-  padding: 10px 14px;
-  font-size: 1rem;
+  padding: 10px 12px;
+  font-size: var(--text-base);
   color: var(--color-text-main);
-  background-color: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 6px);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: border-color var(--transition-fast);
 }
 
 .sig-type-input:focus {
   border-color: var(--color-primary);
-  background-color: #ffffff;
+  background-color: var(--color-bg-card);
   box-shadow: 0 0 0 3px var(--color-primary-focus-ring);
 }
 
@@ -243,30 +237,30 @@
   align-items: flex-start;
   gap: 4px;
   padding: 8px 12px;
-  background-color: var(--color-bg-subtle);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md, 6px);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .sig-font-card:hover {
-  border-color: var(--color-primary);
-  background-color: #ffffff;
+  border-color: var(--color-border-hover);
+  background-color: var(--color-bg-card-hover);
 }
 
 .sig-font-card.selected {
   border-color: var(--color-primary);
   background-color: var(--color-primary-light);
-  box-shadow: 0 0 0 2px var(--color-primary-focus-ring);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .sig-font-meta {
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   color: var(--color-text-muted);
-  text-transform: uppercase;
 }
 
 .sig-font-sample {
@@ -276,9 +270,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
+  color: var(--color-text-main);
 }
 
-/* Upload Image Pane */
 .sig-upload-pane {
   display: flex;
   flex-direction: column;
@@ -290,12 +284,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2.5rem 1rem;
-  border: 2px dashed var(--color-border);
-  border-radius: 8px;
-  background-color: var(--color-bg-subtle);
+  padding: 2.25rem 1rem;
+  border: 1.5px dashed var(--color-border-hover);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
   text-align: center;
 }
 
@@ -305,14 +299,14 @@
 }
 
 .sig-dropzone-text {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   font-weight: 500;
   color: var(--color-text-main);
   margin: 0.5rem 0 0.25rem;
 }
 
 .sig-dropzone-sub {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -330,7 +324,7 @@
   justify-content: center;
   background: repeating-conic-gradient(#f1f1f1 0% 25%, #ffffff 0% 50%) 50% / 16px 16px;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 6px);
+  border-radius: var(--radius-md);
   overflow: hidden;
   padding: 8px;
 }
@@ -353,7 +347,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8125rem;
+  font-size: 13px;
   color: var(--color-text-main);
   cursor: pointer;
 }
@@ -364,8 +358,8 @@
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 0.875rem 1.25rem;
-  border-top: 1px solid var(--color-border-subtle);
-  background-color: #ffffff;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-bg);
   flex-shrink: 0;
 }
 

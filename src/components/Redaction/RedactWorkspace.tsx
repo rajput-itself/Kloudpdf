@@ -223,7 +223,7 @@ export const RedactWorkspace: React.FC<RedactWorkspaceProps> = ({
           <div className="redact-upload-header">
             <h1 className="redact-title">{tool.name}</h1>
             <p className="redact-subtitle">
-              Permanently destroy sensitive text, graphics, and images. Unlike insecure tools that merely draw black boxes over text, KloudPDF permanently excises underlying content.
+              Permanently remove sensitive text, graphics, and image regions from PDF pages in your browser
             </p>
           </div>
 
@@ -238,17 +238,17 @@ export const RedactWorkspace: React.FC<RedactWorkspaceProps> = ({
 
           <div className="redact-security-checklist">
             <div className="redact-security-card">
-              <ShieldAlert size={20} className="text-danger" />
+              <ShieldAlert size={18} className="text-danger" />
               <div>
-                <strong>True Data Elimination</strong>
-                <p>Excises underlying text glyphs and Flate streams. Redacted words cannot be copied or searched.</p>
+                <strong>Content elimination</strong>
+                <p>Removes underlying text glyphs and stream operators so redacted text cannot be searched or copied</p>
               </div>
             </div>
             <div className="redact-security-card">
-              <Lock size={20} className="text-primary" />
+              <Lock size={18} className="text-primary" />
               <div>
-                <strong>100% In-Browser Privacy</strong>
-                <p>Sensitive documents are sanitized entirely inside your browser. No files are uploaded.</p>
+                <strong>Local sanitization</strong>
+                <p>Metadata stripping and export validation run directly in browser memory</p>
               </div>
             </div>
           </div>

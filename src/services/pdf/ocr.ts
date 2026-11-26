@@ -436,7 +436,6 @@ export async function runOcrOnImageOrPdf(
         const viewport = pdfPage.getViewport({ scale: 1 });
         const pageWidth = viewport.width;
         const pageHeight = viewport.height;
-        const rotation = (pdfPage.rotate || 0) % 360;
 
         // Render at 2.0x scale for crisp OCR recognition without excessive memory consumption
         const canvas = document.createElement('canvas');
@@ -499,7 +498,8 @@ export async function runOcrOnImageOrPdf(
           imageBlob: imgBlob,
           pageWidth,
           pageHeight,
-          rotation,
+          // Viewport & rendered canvas already bake pdfPage.rotate into upright dimensions
+          rotation: 0,
         });
 
         fullTextParts.push(

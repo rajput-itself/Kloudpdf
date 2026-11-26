@@ -25,3 +25,8 @@ test-results
 *.njsproj
 *.sln
 *.sw?
+
+# Local agent / assistant metadata
+.agent/
+.agents/
+.impeccable/
