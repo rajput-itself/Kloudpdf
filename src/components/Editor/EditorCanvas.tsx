@@ -6,6 +6,9 @@ import {
   PageDimension,
   Point2D,
   ResizeHandle,
+  ExistingTextItem,
+  ExistingImageItem,
+  ContentEditState,
 } from '../../types/editor';
 import { EditorObjectLayer } from './EditorObjectLayer';
 import {
@@ -28,6 +31,13 @@ interface EditorCanvasProps {
   onUpdateObject: (updated: EditorObject) => void;
   currentPage: number;
   onPageVisible: (pageNumber: number) => void;
+  existingTexts?: Record<number, ExistingTextItem[]>;
+  existingImages?: Record<number, ExistingImageItem[]>;
+  contentEdits?: ContentEditState;
+  selectedExistingTextId?: string | null;
+  selectedExistingImageId?: string | null;
+  onSelectExistingText?: (id: string | null) => void;
+  onSelectExistingImage?: (id: string | null) => void;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -41,6 +51,13 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onAddObject,
   onUpdateObject,
   onPageVisible,
+  existingTexts,
+  existingImages,
+  contentEdits,
+  selectedExistingTextId,
+  selectedExistingImageId,
+  onSelectExistingText,
+  onSelectExistingImage,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
@@ -400,6 +417,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           color: '#ffeb3b',
           opacity: 0.35,
         });
+      } else if (activeMode === 'redact') {
+        const x = Math.min(startPt.x, currentPt.x);
+        const y = Math.min(startPt.y, currentPt.y);
+        const width = Math.max(30, Math.abs(currentPt.x - startPt.x));
+        const height = Math.max(16, Math.abs(currentPt.y - startPt.y));
+
+        onAddObject({
+          id: newId,
+          pageNumber,
+          type: 'redaction',
+          x,
+          y,
+          width,
+          height,
+          color: '#000000',
+          strokeColor: '#ef4444',
+          strokeWidth: 2,
+        });
       }
 
       setCreationState(null);
@@ -452,7 +487,89 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                 }}
               />
 
-              {/* Interactive Object Layer */}
+              {/* Phase 2: Interactive Existing Content Layer (Text & Images) */}
+              {activeMode === 'edit-content' && (
+                <div className="existing-content-layer">
+                  {/* Existing Images */}
+                  {(existingImages?.[dim.pageNumber] || []).map((img) => {
+                    const liveImg = contentEdits?.modifiedImages[img.id] || img;
+                    const isSelected = selectedExistingImageId === img.id;
+                    return (
+                      <div
+                        key={img.id}
+                        className={`existing-image-box ${isSelected ? 'selected' : ''} ${
+                          liveImg.isDeleted ? 'is-deleted' : ''
+                        }`}
+                        style={{
+                          left: `${pdfToScreen(img.x, zoom)}px`,
+                          top: `${pdfToScreen(img.y, zoom)}px`,
+                          width: `${pdfToScreen(img.width, zoom)}px`,
+                          height: `${pdfToScreen(img.height, zoom)}px`,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectExistingImage?.(img.id);
+                          onSelectExistingText?.(null);
+                          onSelectObject(null);
+                        }}
+                        title={liveImg.isDeleted ? 'Deleted image' : 'Click to select, replace, or delete image'}
+                      >
+                        {liveImg.replacementDataUrl && (
+                          <img
+                            src={liveImg.replacementDataUrl}
+                            alt="Replaced preview"
+                            className="existing-image-preview-img"
+                          />
+                        )}
+                        {liveImg.isDeleted && <span>Deleted Image</span>}
+                      </div>
+                    );
+                  })}
+
+                  {/* Existing Texts */}
+                  {(existingTexts?.[dim.pageNumber] || []).map((item) => {
+                    const liveItem = contentEdits?.modifiedTexts[item.id] || item;
+                    const isSelected = selectedExistingTextId === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`existing-text-box ${isSelected ? 'selected' : ''} ${
+                          liveItem.isDeleted ? 'is-deleted' : ''
+                        } ${liveItem.isModified && !liveItem.isDeleted ? 'is-modified' : ''}`}
+                        style={{
+                          left: `${pdfToScreen(item.x, zoom)}px`,
+                          top: `${pdfToScreen(item.y, zoom)}px`,
+                          width: `${pdfToScreen(item.width, zoom)}px`,
+                          height: `${pdfToScreen(item.height, zoom)}px`,
+                          fontSize: `${(liveItem.fontSize || 12) * zoom}px`,
+                          color: liveItem.color || '#000000',
+                          fontFamily:
+                            liveItem.fontFamily === 'TimesRoman'
+                              ? 'Times New Roman, serif'
+                              : liveItem.fontFamily === 'Courier'
+                              ? 'Courier, monospace'
+                              : 'Helvetica, Arial, sans-serif',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectExistingText?.(item.id);
+                          onSelectExistingImage?.(null);
+                          onSelectObject(null);
+                        }}
+                        title={
+                          liveItem.isDeleted
+                            ? 'Deleted text'
+                            : liveItem.unsupportedReason || 'Click to edit or delete text'
+                        }
+                      >
+                        {liveItem.isModified && !liveItem.isDeleted ? liveItem.text : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Interactive Object Layer (Phase 1) */}
               <EditorObjectLayer
                 pageNumber={dim.pageNumber}
                 zoom={zoom}
@@ -497,8 +614,13 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         top: `${pdfToScreen(Math.min(creationState.startPt.y, creationState.currentPt.y), zoom)}px`,
                         width: `${pdfToScreen(Math.abs(creationState.currentPt.x - creationState.startPt.x), zoom)}px`,
                         height: `${pdfToScreen(Math.abs(creationState.currentPt.y - creationState.startPt.y), zoom)}px`,
-                        backgroundColor: activeMode === 'highlight' ? 'rgba(255, 235, 59, 0.35)' : 'rgba(26, 115, 232, 0.08)',
-                        border: '1.5px dashed var(--color-primary)',
+                        backgroundColor:
+                          activeMode === 'highlight'
+                            ? 'rgba(255, 235, 59, 0.35)'
+                            : activeMode === 'redact'
+                            ? 'rgba(0, 0, 0, 0.75)'
+                            : 'rgba(26, 115, 232, 0.08)',
+                        border: activeMode === 'redact' ? '1.5px dashed #ef4444' : '1.5px dashed var(--color-primary)',
                         borderRadius: activeMode === 'circle' ? '50%' : '2px',
                       }}
                     />

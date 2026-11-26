@@ -26,6 +26,8 @@ import {
   Layers,
   Compass,
   FileEdit,
+  Minimize2,
+  FolderArchive,
   LucideIcon,
 } from 'lucide-react';
 import { ToolDefinition, ToolId } from '../../types';
@@ -64,6 +66,8 @@ const ICON_MAP: Record<ToolId, LucideIcon> = {
   'fill-forms': CheckSquare,
   'flatten-pdf': Layers,
   'deskew-pdf': Compass,
+  'compress-pdf': Minimize2,
+  'batch-pdf': FolderArchive,
   protect: ShieldCheck,
 };
 

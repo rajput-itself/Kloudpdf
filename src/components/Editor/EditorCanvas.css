@@ -66,6 +66,93 @@
   pointer-events: none;
 }
 
+/* Phase 2: Existing Content Overlay */
+.existing-content-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.existing-text-box {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.12s ease;
+  user-select: none;
+  border: 1px dashed transparent;
+}
+
+.existing-text-box:hover {
+  background-color: rgba(26, 115, 232, 0.08);
+  border-color: rgba(26, 115, 232, 0.4);
+}
+
+.existing-text-box.selected {
+  background-color: rgba(26, 115, 232, 0.12);
+  border: 1.5px solid #1a73e8;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+.existing-text-box.is-deleted {
+  background-color: rgba(217, 48, 37, 0.15) !important;
+  border: 1px dashed #d93025 !important;
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.existing-text-box.is-modified {
+  background-color: #ffffff !important;
+  border: 1.5px solid #1a73e8 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  white-space: pre;
+  overflow: hidden;
+}
+
+.existing-image-box {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: pointer;
+  border: 1.5px dashed rgba(26, 115, 232, 0.35);
+  transition: all 0.12s ease;
+  overflow: hidden;
+}
+
+.existing-image-box:hover {
+  background-color: rgba(26, 115, 232, 0.1);
+  border-color: #1a73e8;
+}
+
+.existing-image-box.selected {
+  border: 2px solid #1a73e8;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.existing-image-box.is-deleted {
+  background-color: rgba(217, 48, 37, 0.3) !important;
+  border: 2px dashed #d93025 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #d93025;
+}
+
+.existing-image-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+
 @media (max-width: 768px) {
   .editor-pages-scroll-stack {
     padding: 3rem 0.75rem calc(9rem + env(safe-area-inset-bottom, 0px)) 0.75rem;

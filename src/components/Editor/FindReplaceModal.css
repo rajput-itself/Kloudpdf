@@ -1,0 +1,170 @@
+.find-replace-floating-card {
+  position: fixed;
+  top: 72px;
+  right: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background-color: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: findModalFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes findModalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.find-replace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.find-replace-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #202124;
+}
+
+.find-replace-close-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  color: #5f6368;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.find-replace-close-btn:hover {
+  background-color: #e8eaed;
+  color: #202124;
+}
+
+.find-replace-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.find-replace-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.find-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.find-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  padding-right: 70px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #202124;
+  outline: none;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease;
+}
+
+.find-input:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+
+.match-counter-pill {
+  position: absolute;
+  right: 8px;
+  font-size: 11px;
+  color: #5f6368;
+  pointer-events: none;
+}
+
+.find-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.find-nav-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f3f4;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  color: #3c4043;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.find-nav-btn:hover:not(:disabled) {
+  background-color: #e8eaed;
+  color: #202124;
+}
+
+.find-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.find-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.find-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #5f6368;
+  cursor: pointer;
+  user-select: none;
+}
+
+.find-feedback-text {
+  font-size: 11px;
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+.find-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

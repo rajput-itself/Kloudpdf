@@ -323,4 +323,57 @@ describe('4. Text, Image, Shape Insertion & PDF Export Roundtrip', () => {
     const loadedDoc = await PDFDocument.load(arrayBuf);
     assert.strictEqual(loadedDoc.getPageCount(), 2);
   });
+
+  test('multiple sequential exports do not detach or corrupt input buffer', async () => {
+    const originalBytes = await createTestPdf();
+    const arrayBuffer = originalBytes.buffer.slice(0);
+
+    const sigObj: SignatureEditorObject = {
+      id: 'sig_seq_1',
+      pageNumber: 1,
+      type: 'signature',
+      x: 100,
+      y: 100,
+      width: 150,
+      height: 50,
+      dataUrl: testPngDataUrl,
+      strokeColor: '#000000',
+    };
+
+    // First export
+    const blob1 = await exportEditedPdf(arrayBuffer, [sigObj]);
+    assert.ok(blob1.size > 0);
+    // Buffer should remain intact and not detached
+    assert.strictEqual(arrayBuffer.byteLength > 0, true);
+
+    // Second export using the exact same buffer
+    const blob2 = await exportEditedPdf(arrayBuffer, [sigObj]);
+    assert.ok(blob2.size > 0);
+    assert.strictEqual(arrayBuffer.byteLength > 0, true);
+  });
+
+  test('handles detached or corrupted buffer gracefully with clear error', async () => {
+    // Construct an empty 0-byte buffer simulating a detached buffer
+    const emptyBuffer = new ArrayBuffer(0);
+    const sigObj: SignatureEditorObject = {
+      id: 'sig_empty',
+      pageNumber: 1,
+      type: 'signature',
+      x: 50,
+      y: 50,
+      width: 100,
+      height: 50,
+      dataUrl: testPngDataUrl,
+      strokeColor: '#000000',
+    };
+
+    await assert.rejects(
+      async () => {
+        await exportEditedPdf(emptyBuffer, [sigObj]);
+      },
+      (err: Error) => {
+        return err.message.length > 0;
+      }
+    );
+  });
 });

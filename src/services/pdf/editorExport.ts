@@ -20,9 +20,12 @@ import {
   HighlightEditorObject,
   NoteEditorObject,
   SignatureEditorObject,
+  RedactionEditorObject,
   StandardFontFamily,
+  ContentEditState,
 } from '../../types/editor';
 import { hexToPdfRgb, toPdfLibCoordinates } from './editorCoordinates';
+import { applyContentStreamEdits } from './contentEditorEngine';
 import { toBlob } from '../../utils/file';
 
 /**
@@ -156,16 +159,16 @@ async function drawImageOnPage(
 
   try {
     if (obj.mimeType === 'image/png' || obj.dataUrl.startsWith('data:image/png')) {
-      embeddedImage = await pdfDoc.embedPng(bytes);
+      embeddedImage = await pdfDoc.embedPng(new Uint8Array(bytes.slice()));
     } else {
-      embeddedImage = await pdfDoc.embedJpg(bytes);
+      embeddedImage = await pdfDoc.embedJpg(new Uint8Array(bytes.slice()));
     }
   } catch {
     // Graceful fallback: try alternate embed if header differed
     try {
-      embeddedImage = await pdfDoc.embedPng(bytes);
+      embeddedImage = await pdfDoc.embedPng(new Uint8Array(bytes.slice()));
     } catch {
-      embeddedImage = await pdfDoc.embedJpg(bytes);
+      embeddedImage = await pdfDoc.embedJpg(new Uint8Array(bytes.slice()));
     }
   }
 
@@ -459,9 +462,9 @@ async function drawSignatureOnPage(
   const bytes = dataUrlToBytes(obj.dataUrl);
   let embeddedImage;
   try {
-    embeddedImage = await pdfDoc.embedPng(bytes);
+    embeddedImage = await pdfDoc.embedPng(new Uint8Array(bytes.slice()));
   } catch {
-    embeddedImage = await pdfDoc.embedJpg(bytes);
+    embeddedImage = await pdfDoc.embedJpg(new Uint8Array(bytes.slice()));
   }
 
   const coords = toPdfLibCoordinates(
@@ -484,16 +487,73 @@ async function drawSignatureOnPage(
 }
 
 /**
+ * Draws solid opaque black box on a PDF page for redactions.
+ */
+function drawRedactionOnPage(
+  page: PDFPage,
+  obj: RedactionEditorObject,
+  pWidth: number,
+  pHeight: number,
+  rotation: number
+): void {
+  const coords = toPdfLibCoordinates(
+    obj.x,
+    obj.y,
+    obj.width,
+    obj.height,
+    pWidth,
+    pHeight,
+    rotation
+  );
+
+  page.drawRectangle({
+    x: coords.x,
+    y: coords.y,
+    width: coords.width,
+    height: coords.height,
+    color: rgb(0, 0, 0),
+    opacity: 1,
+  });
+}
+
+/**
  * Core Export Engine: Applies all editor objects onto the original PDF document.
  * Returns a downloadable PDF Blob.
  */
 export async function exportEditedPdf(
   originalPdfData: ArrayBuffer | Uint8Array,
   objects: EditorObject[],
-  onProgress?: (current: number, total: number, message: string) => void
+  onProgress?: (current: number, total: number, message: string) => void,
+  contentEdits?: ContentEditState
 ): Promise<Blob> {
   onProgress?.(1, 10, 'Loading original PDF document...');
-  const pdfDoc = await PDFDocument.load(originalPdfData, { ignoreEncryption: true });
+
+  // Ensure originalPdfData is safe and not detached
+  let safeBytes: Uint8Array;
+  try {
+    if (originalPdfData instanceof Uint8Array) {
+      safeBytes = new Uint8Array(originalPdfData.slice());
+    } else {
+      safeBytes = new Uint8Array(originalPdfData.slice(0));
+    }
+  } catch {
+    throw new Error('PDF document buffer is invalid or detached. Please reload your document.');
+  }
+
+  // Phase 2: If there are genuine content stream edits (text edits/deletions, image replacements),
+  // rewrite content streams and XObjects first, preserving 100% vector document integrity.
+  if (
+    contentEdits &&
+    (Object.keys(contentEdits.modifiedTexts).length > 0 ||
+      Object.keys(contentEdits.modifiedImages).length > 0)
+  ) {
+    onProgress?.(2, 10, 'Rewriting PDF content streams...');
+    safeBytes = await applyContentStreamEdits(safeBytes, contentEdits, (msg) =>
+      onProgress?.(2, 10, msg)
+    );
+  }
+
+  const pdfDoc = await PDFDocument.load(safeBytes, { ignoreEncryption: true });
   const fontCache = new FontCache(pdfDoc);
 
   const totalPages = pdfDoc.getPageCount();
@@ -541,6 +601,9 @@ export async function exportEditedPdf(
           break;
         case 'signature':
           await drawSignatureOnPage(pdfDoc, page, item as SignatureEditorObject, pWidth, pHeight, rotation);
+          break;
+        case 'redaction':
+          drawRedactionOnPage(page, item as RedactionEditorObject, pWidth, pHeight, rotation);
           break;
       }
     }

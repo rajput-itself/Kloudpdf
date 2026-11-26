@@ -495,6 +495,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
       setRedactions((prev) => [
         ...prev,
         {
+          id: `redact_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           pageNumber: activeInteractivePage,
           x: currentDragRect.x,
           y: currentDragRect.y,
@@ -934,7 +935,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
             language: ocrLanguage,
             generateSearchablePdf: ocrSearchablePdf,
             pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
-            onProgress: (st, pr) => {
+            onProgress: (st: string, pr: number) => {
               setStatusText(st);
               setProgressDetail(`${Math.round(pr * 100)}% completed`);
             },
@@ -983,8 +984,10 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
             throw new Error('Please define at least one redaction box on the document.');
           }
           setStatusText('Applying permanent redactions...');
-          const redactRes = await applyPermanentRedaction(primaryFile, redactions, (cur, tot) => {
-            setProgressDetail(`Rasterizing and permanently redacting page ${cur} of ${tot}`);
+          const redactRes = await applyPermanentRedaction(primaryFile, redactions, {
+            onProgress: (cur: number, tot: number) => {
+              setProgressDetail(`Rasterizing and permanently redacting page ${cur} of ${tot}`);
+            },
           });
           setResult({
             blob: redactRes.blob,

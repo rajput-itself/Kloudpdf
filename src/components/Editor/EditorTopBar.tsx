@@ -9,6 +9,11 @@ import {
   Download,
   FileText,
   RotateCcw,
+  ScanText,
+  Layers,
+  FileCheck2,
+  Tag,
+  CheckSquare,
 } from 'lucide-react';
 import { Button } from '../common/Button/Button';
 import './EditorTopBar.css';
@@ -28,6 +33,13 @@ interface EditorTopBarProps {
   onResetEdits: () => void;
   isExporting: boolean;
   hasEdits: boolean;
+  onOpenOcr?: () => void;
+  isScannedDetected?: boolean;
+  onOpenFormFill?: () => void;
+  hasForm?: boolean;
+  onFlatten?: () => void;
+  onOpenMetadata?: () => void;
+  onOpenValidation?: () => void;
 }
 
 export const EditorTopBar: React.FC<EditorTopBarProps> = ({
@@ -45,6 +57,13 @@ export const EditorTopBar: React.FC<EditorTopBarProps> = ({
   onResetEdits,
   isExporting,
   hasEdits,
+  onOpenOcr,
+  isScannedDetected,
+  onOpenFormFill,
+  hasForm,
+  onFlatten,
+  onOpenMetadata,
+  onOpenValidation,
 }) => {
   const zoomPercentage = Math.round(zoom * 100);
 
@@ -155,6 +174,72 @@ export const EditorTopBar: React.FC<EditorTopBarProps> = ({
 
       {/* Right section: Reset edits & Download PDF */}
       <div className="topbar-right">
+        {onOpenFormFill && (
+          <button
+            type="button"
+            className={`topbar-tool-pill ${hasForm ? 'highlight-form' : ''}`}
+            onClick={onOpenFormFill}
+            title={hasForm ? 'Interactive AcroForm fields detected. Fill & Edit Forms' : 'Inspect Form Fields'}
+          >
+            <CheckSquare size={14} />
+            <span className="pill-text">Forms</span>
+            {hasForm && <span className="pill-dot" />}
+          </button>
+        )}
+
+        {onOpenMetadata && (
+          <button
+            type="button"
+            className="topbar-tool-pill"
+            onClick={onOpenMetadata}
+            title="View and Edit Document Metadata"
+          >
+            <Tag size={14} />
+            <span className="pill-text">Metadata</span>
+          </button>
+        )}
+
+        {onOpenValidation && (
+          <button
+            type="button"
+            className="topbar-tool-pill"
+            onClick={onOpenValidation}
+            title="Validate PDF Structure and Security Posture"
+          >
+            <FileCheck2 size={14} />
+            <span className="pill-text">Validate</span>
+          </button>
+        )}
+
+        {onFlatten && (
+          <button
+            type="button"
+            className="topbar-tool-pill"
+            onClick={onFlatten}
+            title="Flatten all form fields and annotations into static artwork"
+          >
+            <Layers size={14} />
+            <span className="pill-text">Flatten</span>
+          </button>
+        )}
+
+        {onOpenOcr && (
+          <button
+            type="button"
+            className={`topbar-ocr-btn ${isScannedDetected ? 'scanned-highlight' : ''}`}
+            onClick={onOpenOcr}
+            title={
+              isScannedDetected
+                ? 'Scanned page detected! Click to recognize text (OCR)'
+                : 'Recognize text on page (OCR)'
+            }
+          >
+            <ScanText size={15} />
+            <span className="ocr-btn-text">Recognize Text</span>
+            {isScannedDetected && <span className="ocr-pulse-dot" />}
+          </button>
+        )}
+
         {hasEdits && (
           <button
             type="button"
