@@ -12,7 +12,7 @@ test.describe('KloudPDF End-to-End Functional & Security Tests', () => {
   }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/KloudPDF/i);
-    await expect(page.getByRole('heading', { name: /Everything you need/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Every PDF tool, private by default/i })).toBeVisible();
 
     // Quick Search filter
     const searchInput = page.getByLabel('Search PDF tools');
@@ -35,16 +35,16 @@ test.describe('KloudPDF End-to-End Functional & Security Tests', () => {
       await drawer.getByRole('button', { name: /Switch to light theme/i }).click();
       await page.keyboard.press('Escape');
     } else {
-      await page.locator('.header-nav').getByLabel(/Switch to dark theme/i).click();
+      await page.locator('.header-actions').getByLabel(/Switch to dark theme/i).click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-      await page.locator('.header-nav').getByLabel(/Switch to light theme/i).click();
+      await page.locator('.header-actions').getByLabel(/Switch to light theme/i).click();
     }
 
     // Invalid route 404 check
     await page.goto('/#/non-existent-route-xyz');
     await expect(page.getByRole('heading', { name: /404/i })).toBeVisible();
     await page.getByRole('button', { name: /Return to All PDF Tools/i }).click();
-    await expect(page.getByRole('heading', { name: /Everything you need/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Every PDF tool, private by default/i })).toBeVisible();
   });
 
   test('Static PWA & SEO assets resolve cleanly', async ({ request }) => {

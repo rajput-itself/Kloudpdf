@@ -167,7 +167,7 @@
 .op-tab.active {
   border-color: var(--color-primary);
   background-color: var(--color-primary-light);
-  color: var(--color-primary);
+  color: var(--color-primary-hover);
   font-weight: 600;
 }
 
