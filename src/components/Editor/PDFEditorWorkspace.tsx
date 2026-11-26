@@ -34,6 +34,11 @@ import { inspectPdfForm } from '../../services/pdf/forms';
 import { flattenPdfDocument } from '../../services/pdf/flatten';
 import { detectScannedPage, OcrLineItem } from '../../services/pdf/ocr';
 import { downloadBlob } from '../../utils/file';
+import {
+  EditorDeltaCommand,
+  applyDeltaCommand,
+  createDeltaCommand,
+} from '../../utils/historyStack';
 import { AlertCircle, ScanText } from 'lucide-react';
 import './PDFEditorWorkspace.css';
 
@@ -44,11 +49,6 @@ interface PDFEditorWorkspaceProps {
 }
 
 const MAX_HISTORY_LENGTH = 30;
-
-interface HistorySnapshot {
-  objects: EditorObject[];
-  contentEdits: ContentEditState;
-}
 
 export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   tool,
@@ -105,9 +105,9 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [isScannedPageDetected, setIsScannedPageDetected] = useState(false);
 
-  // Undo / Redo History (tracks both overlay objects and genuine content edits)
-  const [past, setPast] = useState<HistorySnapshot[]>([]);
-  const [future, setFuture] = useState<HistorySnapshot[]>([]);
+  // Undo / Redo History (compact delta commands across overlay objects and content edits)
+  const [past, setPast] = useState<EditorDeltaCommand[]>([]);
+  const [future, setFuture] = useState<EditorDeltaCommand[]>([]);
 
   // Modals & UI feedback
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
@@ -263,15 +263,16 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasEdits]);
 
-  // History Helper: Commit changes to Undo stack
+  // History Helper: Commit compact delta command to Undo stack
   const commitToHistory = useCallback(
     (newObjects: EditorObject[] = objects, newContentEdits: ContentEditState = contentEdits) => {
+      const cmd = createDeltaCommand({ objects, contentEdits }, { objects: newObjects, contentEdits: newContentEdits });
+      if (!cmd) return;
       setPast((prevPast) => {
-        const updated = [...prevPast, { objects, contentEdits }];
-        if (updated.length > MAX_HISTORY_LENGTH) {
-          return updated.slice(updated.length - MAX_HISTORY_LENGTH);
-        }
-        return updated;
+        const updated = [...prevPast, cmd];
+        return updated.length > MAX_HISTORY_LENGTH
+          ? updated.slice(updated.length - MAX_HISTORY_LENGTH)
+          : updated;
       });
       setFuture([]);
       setObjects(newObjects);
@@ -283,16 +284,15 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   // Undo Action
   const handleUndo = useCallback(() => {
     if (past.length === 0) return;
-    const previous = past[past.length - 1]!;
-    const newPast = past.slice(0, past.length - 1);
+    const cmd = past[past.length - 1]!;
+    const reverted = applyDeltaCommand({ objects, contentEdits }, cmd, 'undo');
 
-    setFuture((prevFuture) => [{ objects, contentEdits }, ...prevFuture]);
-    setPast(newPast);
-    setObjects(previous.objects);
-    setContentEdits(previous.contentEdits);
+    setFuture((prevFuture) => [cmd, ...prevFuture]);
+    setPast(past.slice(0, past.length - 1));
+    setObjects(reverted.objects);
+    setContentEdits(reverted.contentEdits);
 
-    // If selected object is no longer present, clear selection
-    if (selectedObjectId && !previous.objects.some((o) => o.id === selectedObjectId)) {
+    if (selectedObjectId && !reverted.objects.some((o) => o.id === selectedObjectId)) {
       setSelectedObjectId(null);
     }
   }, [past, objects, contentEdits, selectedObjectId]);
@@ -300,13 +300,13 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
   // Redo Action
   const handleRedo = useCallback(() => {
     if (future.length === 0) return;
-    const next = future[0]!;
-    const newFuture = future.slice(1);
+    const cmd = future[0]!;
+    const reapplied = applyDeltaCommand({ objects, contentEdits }, cmd, 'redo');
 
-    setPast((prevPast) => [...prevPast, { objects, contentEdits }]);
-    setFuture(newFuture);
-    setObjects(next.objects);
-    setContentEdits(next.contentEdits);
+    setPast((prevPast) => [...prevPast, cmd]);
+    setFuture(future.slice(1));
+    setObjects(reapplied.objects);
+    setContentEdits(reapplied.contentEdits);
   }, [future, objects, contentEdits]);
 
   // Phase 2: Update existing text
@@ -1022,11 +1022,6 @@ export const PDFEditorWorkspace: React.FC<PDFEditorWorkspaceProps> = ({
                 if (selected.length > 0) loadDocument(selected[0]!);
               }}
             />
-          </div>
-
-          <div className="editor-privacy-note">
-            <span className="privacy-badge-pill">100% Private</span>
-            <span>All editing occurs locally in your browser. No files are uploaded to any server.</span>
           </div>
         </div>
       </div>

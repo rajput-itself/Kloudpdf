@@ -1,7 +1,7 @@
 .editor-canvas-viewport {
   flex: 1;
   height: 100%;
-  background-color: #f1f3f4;
+  background-color: var(--color-bg-canvas);
   overflow: auto;
   position: relative;
   outline: none;
@@ -26,22 +26,25 @@
 .editor-page-card {
   position: relative;
   background-color: #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border-hover);
   border-radius: 2px;
   user-select: none;
   flex-shrink: 0;
-  transition: box-shadow 0.15s ease;
+  transition: box-shadow var(--transition-fast);
 }
 
 .editor-page-card:hover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
 }
 
 .editor-page-tag {
   position: absolute;
-  top: -24px;
+  top: -22px;
   left: 0;
-  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-text-secondary);
   user-select: none;
@@ -54,10 +57,7 @@
 
 .editor-creation-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   pointer-events: none;
 }
 
@@ -66,13 +66,10 @@
   pointer-events: none;
 }
 
-/* Phase 2: Existing Content Overlay */
+/* Existing Content Overlay */
 .existing-content-layer {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   pointer-events: auto;
   z-index: 10;
 }
@@ -82,33 +79,33 @@
   box-sizing: border-box;
   cursor: pointer;
   border-radius: 2px;
-  transition: all 0.12s ease;
+  transition: background-color 120ms ease, border-color 120ms ease;
   user-select: none;
   border: 1px dashed transparent;
 }
 
 .existing-text-box:hover {
-  background-color: rgba(26, 115, 232, 0.08);
-  border-color: rgba(26, 115, 232, 0.4);
+  background-color: rgba(0, 102, 255, 0.08);
+  border-color: rgba(0, 102, 255, 0.45);
 }
 
 .existing-text-box.selected {
-  background-color: rgba(26, 115, 232, 0.12);
-  border: 1.5px solid #1a73e8;
+  background-color: rgba(0, 102, 255, 0.12);
+  border: 1.5px solid var(--color-primary);
   box-shadow: 0 0 0 1px #ffffff;
 }
 
 .existing-text-box.is-deleted {
-  background-color: rgba(217, 48, 37, 0.15) !important;
-  border: 1px dashed #d93025 !important;
+  background-color: rgba(220, 38, 38, 0.14) !important;
+  border: 1px dashed var(--color-danger) !important;
   text-decoration: line-through;
   opacity: 0.65;
 }
 
 .existing-text-box.is-modified {
   background-color: #ffffff !important;
-  border: 1.5px solid #1a73e8 !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  border: 1.5px solid var(--color-primary) !important;
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   padding: 0 2px;
@@ -120,30 +117,30 @@
   position: absolute;
   box-sizing: border-box;
   cursor: pointer;
-  border: 1.5px dashed rgba(26, 115, 232, 0.35);
-  transition: all 0.12s ease;
+  border: 1.5px dashed rgba(0, 102, 255, 0.35);
+  transition: background-color 120ms ease, border-color 120ms ease;
   overflow: hidden;
 }
 
 .existing-image-box:hover {
-  background-color: rgba(26, 115, 232, 0.1);
-  border-color: #1a73e8;
+  background-color: rgba(0, 102, 255, 0.1);
+  border-color: var(--color-primary);
 }
 
 .existing-image-box.selected {
-  border: 2px solid #1a73e8;
+  border: 2px solid var(--color-primary);
   box-shadow: 0 0 0 2px #ffffff;
 }
 
 .existing-image-box.is-deleted {
-  background-color: rgba(217, 48, 37, 0.3) !important;
-  border: 2px dashed #d93025 !important;
+  background-color: rgba(220, 38, 38, 0.25) !important;
+  border: 2px dashed var(--color-danger) !important;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 600;
-  color: #d93025;
+  color: var(--color-danger);
 }
 
 .existing-image-preview-img {

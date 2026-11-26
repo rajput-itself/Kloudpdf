@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckCircle2,
   Download,
@@ -12,6 +12,7 @@ import {
 import { Button } from '../../components/common/Button/Button';
 import { ProcessedResult } from '../../types';
 import { formatBytes, downloadBlob } from '../../utils/file';
+import { revokeObjectUrls } from '../../utils/disposableScope';
 import './ToolWorkspace.css';
 
 interface CompletedViewProps {
@@ -21,6 +22,11 @@ interface CompletedViewProps {
 
 export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset }) => {
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const urls = result.imageItems?.map((item) => item.url) ?? [];
+    return () => revokeObjectUrls(urls);
+  }, [result]);
 
   const isZip = result.filename.toLowerCase().endsWith('.zip');
   const isPng = result.filename.toLowerCase().endsWith('.png');
@@ -67,9 +73,9 @@ export const CompletedView: React.FC<CompletedViewProps> = ({ result, onReset })
         <CheckCircle2 size={48} className="completed-check-icon" />
       </div>
 
-      <h2 className="completed-title">Your file is ready!</h2>
+      <h2 className="completed-title">Your file is ready</h2>
       <p className="completed-subtitle">
-        Document processing finished successfully and securely on your device.
+        Processed locally inside your browser
       </p>
 
       <div className="completed-file-card">

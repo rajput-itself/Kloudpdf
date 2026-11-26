@@ -1,28 +1,28 @@
 .find-replace-floating-card {
   position: fixed;
-  top: 72px;
-  right: 24px;
+  top: 68px;
+  right: 20px;
   width: 360px;
   max-width: calc(100vw - 32px);
-  background-color: #ffffff;
-  border: 1px solid #dadce0;
-  border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: findModalFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: findModalFadeIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes findModalFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
@@ -31,8 +31,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e8eaed;
+  background-color: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .find-replace-title {
@@ -41,25 +41,25 @@
   gap: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #202124;
+  color: var(--color-text-main);
 }
 
 .find-replace-close-btn {
   background: none;
   border: none;
   padding: 4px;
-  border-radius: 4px;
-  color: #5f6368;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .find-replace-close-btn:hover {
-  background-color: #e8eaed;
-  color: #202124;
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-main);
 }
 
 .find-replace-body {
@@ -84,28 +84,29 @@
 
 .find-input {
   width: 100%;
-  height: 32px;
-  padding: 0 10px;
-  padding-right: 70px;
-  border: 1px solid #dadce0;
-  border-radius: 6px;
+  height: 34px;
+  padding: 0 70px 0 10px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
   font-size: 13px;
-  color: #202124;
+  color: var(--color-text-main);
   outline: none;
-  background-color: #ffffff;
-  transition: border-color 0.15s ease;
+  background-color: var(--color-bg);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .find-input:focus {
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-focus-ring);
 }
 
 .match-counter-pill {
   position: absolute;
   right: 8px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
-  color: #5f6368;
+  color: var(--color-text-muted);
   pointer-events: none;
 }
 
@@ -121,17 +122,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f1f3f4;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  color: #3c4043;
+  background-color: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .find-nav-btn:hover:not(:disabled) {
-  background-color: #e8eaed;
-  color: #202124;
+  background-color: var(--color-bg-card-hover);
+  color: var(--color-text-main);
 }
 
 .find-nav-btn:disabled {
@@ -150,14 +151,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #5f6368;
+  color: var(--color-text-secondary);
   cursor: pointer;
   user-select: none;
 }
 
 .find-feedback-text {
   font-size: 11px;
-  color: #1a73e8;
+  color: var(--color-primary);
   font-weight: 500;
 }
 

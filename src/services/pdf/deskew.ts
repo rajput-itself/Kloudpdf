@@ -127,10 +127,22 @@ export async function deskewPdfDocument(
   const pdfDoc = await loadPdfDocument(buffer);
   const totalPages = pdfDoc.numPages;
 
+  const targetPageSet =
+    options.pageNumbers && options.pageNumbers.length > 0
+      ? new Set(options.pageNumbers.filter((p) => p >= 1 && p <= totalPages))
+      : null;
+
   const outDoc = await PDFDocument.create();
+  const origDoc = targetPageSet ? await PDFDocument.load(buffer.slice(0), { ignoreEncryption: true }) : null;
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     options.onProgress?.(pageNum, totalPages);
+
+    if (targetPageSet && !targetPageSet.has(pageNum) && origDoc) {
+      const [copied] = await outDoc.copyPages(origDoc, [pageNum - 1]);
+      if (copied) outDoc.addPage(copied);
+      continue;
+    }
 
     const pdfPage = await pdfDoc.getPage(pageNum);
     const viewport = pdfPage.getViewport({ scale: 1 });
@@ -138,41 +150,41 @@ export async function deskewPdfDocument(
     const pageHeight = viewport.height;
 
     const canvas = document.createElement('canvas');
-    await renderPageToCanvas(pdfDoc, pageNum, canvas, { scale: 1.8 });
-
-    // Determine angle (manual override or auto-detected)
-    let angleToApply = options.manualAngle ?? 0;
-    if (options.manualAngle === undefined) {
-      const detected = detectCanvasSkewAngle(canvas);
-      angleToApply = detected.detectedAngle;
-    }
-
     let finalCanvas = canvas;
-    if (Math.abs(angleToApply) > 0.1) {
-      finalCanvas = rotateCanvas(canvas, angleToApply);
-    }
+    try {
+      await renderPageToCanvas(pdfDoc, pageNum, canvas, { scale: 1.8 });
 
-    const imgBlob = await new Promise<Blob>((res, rej) => {
-      finalCanvas.toBlob((b) => (b ? res(b) : rej(new Error('Failed to encode image'))), 'image/jpeg', 0.94);
-    });
+      let angleToApply = options.manualAngle ?? 0;
+      if (options.manualAngle === undefined) {
+        const detected = detectCanvasSkewAngle(canvas);
+        angleToApply = detected.detectedAngle;
+      }
 
-    const imgBuffer = await imgBlob.arrayBuffer();
-    const embeddedImg = await outDoc.embedJpg(imgBuffer);
+      if (Math.abs(angleToApply) > 0.1) {
+        finalCanvas = rotateCanvas(canvas, angleToApply);
+      }
 
-    const page = outDoc.addPage([pageWidth, pageHeight]);
-    page.drawImage(embeddedImg, {
-      x: 0,
-      y: 0,
-      width: pageWidth,
-      height: pageHeight,
-    });
+      const imgBlob = await new Promise<Blob>((res, rej) => {
+        finalCanvas.toBlob((b) => (b ? res(b) : rej(new Error('Failed to encode image'))), 'image/jpeg', 0.94);
+      });
 
-    // Cleanup
-    canvas.width = 0;
-    canvas.height = 0;
-    if (finalCanvas !== canvas) {
-      finalCanvas.width = 0;
-      finalCanvas.height = 0;
+      const imgBuffer = await imgBlob.arrayBuffer();
+      const embeddedImg = await outDoc.embedJpg(imgBuffer);
+
+      const page = outDoc.addPage([pageWidth, pageHeight]);
+      page.drawImage(embeddedImg, {
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight,
+      });
+    } finally {
+      canvas.width = 0;
+      canvas.height = 0;
+      if (finalCanvas !== canvas) {
+        finalCanvas.width = 0;
+        finalCanvas.height = 0;
+      }
     }
   }
 

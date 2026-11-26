@@ -53,9 +53,9 @@ export async function inspectDigitalSignatures(
 
   const signatures: PdfSignatureInfo[] = [];
 
-  // Decode chunks into string to probe signature dictionaries without excessive memory
+  // Decode chunks into string to probe signature dictionaries without call-stack overflow
   const chunkLength = Math.min(fileSize, 2000000); // 2MB probe
-  const probeStr = String.fromCharCode(...fileBytes.slice(0, chunkLength));
+  const probeStr = new TextDecoder('latin1').decode(fileBytes.subarray(0, chunkLength));
 
   // Find all signature dictionaries (/Type /Sig)
   const sigMatches = Array.from(probeStr.matchAll(/\/Type\s*\/Sig\b/g));

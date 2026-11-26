@@ -1,5 +1,7 @@
 import JSZip from 'jszip';
 import { loadPdfDocument, renderPageToCanvas } from '../pdf/render';
+import { ResourceScope } from '../../utils/disposableScope';
+import { yieldToBrowser } from '../../utils/taskPool';
 
 export interface PdfToImageOptions {
   format: 'png' | 'webp';
@@ -53,22 +55,23 @@ export async function convertPdfToImages(
     const pageNum = targetPages[i]!;
     options.onProgress?.(i + 1, targetPages.length);
 
-    const canvas = document.createElement('canvas');
-    await renderPageToCanvas(pdfDoc, pageNum, canvas, { scale: renderScale });
+    const scope = new ResourceScope();
+    let imageBlob: Blob;
+    try {
+      const canvas = scope.trackCanvas(document.createElement('canvas'));
+      await renderPageToCanvas(pdfDoc, pageNum, canvas, { scale: renderScale });
 
-    const imageBlob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          // Immediately free GPU memory
-          canvas.width = 0;
-          canvas.height = 0;
-          if (blob) resolve(blob);
-          else reject(new Error(`Failed to convert page ${pageNum} to ${extension.toUpperCase()}`));
-        },
-        mimeType,
-        imageQuality
-      );
-    });
+      imageBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) =>
+            blob ? resolve(blob) : reject(new Error(`Failed to convert page ${pageNum} to ${extension.toUpperCase()}`)),
+          mimeType,
+          imageQuality
+        );
+      });
+    } finally {
+      scope.dispose();
+    }
 
     const itemFilename = `${baseName}_page_${pageNum}.${extension}`;
     const itemUrl = URL.createObjectURL(imageBlob);
@@ -82,6 +85,7 @@ export async function convertPdfToImages(
 
     const buffer = await imageBlob.arrayBuffer();
     zip.file(itemFilename, buffer);
+    await yieldToBrowser();
   }
 
   if (items.length === 1) {

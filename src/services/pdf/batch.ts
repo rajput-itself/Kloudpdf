@@ -26,7 +26,9 @@ import { protectPdfFile } from './protect';
 import { loadPdfDocument } from './render';
 import { PDFDocument } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
+import { getDeviceCapabilities } from '../../utils/deviceLimits';
 import { isSafeZipPath } from '../../utils/fileSecurity';
+import { runBoundedPool } from '../../utils/taskPool';
 
 export type BatchItemStatus =
   | 'pending'
@@ -69,37 +71,34 @@ async function unlockPdfFile(file: File, password: string): Promise<Blob> {
   const buffer = await file.arrayBuffer();
 
   // 1. Verify with PDF.js that the password is valid
+  let verifiedPdf: any = null;
   try {
     const loadingTask = (await import('pdfjs-dist')).getDocument({
       data: new Uint8Array(buffer.slice(0)),
       password: cleanPassword,
     });
-    await loadingTask.promise;
+    verifiedPdf = await loadingTask.promise;
   } catch (err: any) {
     const msg = err?.message || String(err);
     if (msg.toLowerCase().includes('password')) {
       throw new Error('Incorrect password. Please verify the password and try again.', { cause: err });
     }
     throw new Error(`Failed to unlock PDF: ${msg}`, { cause: err });
+  } finally {
+    await verifiedPdf?.destroy?.();
   }
 
-  // 2. Export unlocked document using pdf-lib
-  try {
-    const pdfDoc = await PDFDocument.load(buffer, {
-      ignoreEncryption: true,
-    });
-
-    // Remove the Encrypt dictionary from trailer so it is no longer locked
-    if (pdfDoc.context.trailerInfo?.Encrypt) {
-      delete pdfDoc.context.trailerInfo.Encrypt;
-    }
-
-    const unlockedBytes = await pdfDoc.save({ useObjectStreams: true });
-    return toBlob(unlockedBytes, 'application/pdf');
-  } catch {
-    // If standard load fails, try saving fresh pages
-    throw new Error('This PDF uses an advanced security handler that cannot be decrypted without external keys.');
+  // 2. Fail-closed check: pdf-lib does not decrypt RC4/AES streams when loading with ignoreEncryption.
+  // Refuse to strip /Encrypt if the trailer still enforces cryptographic encryption.
+  const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  if (pdfDoc.isEncrypted || pdfDoc.context.trailerInfo?.Encrypt) {
+    throw new Error(
+      'This PDF uses stream encryption that cannot be losslessly decrypted in-browser without rasterizing. Export pages via "Print / Save as PDF" or "PDF to Images" after opening.'
+    );
   }
+
+  const unlockedBytes = await pdfDoc.save({ useObjectStreams: true });
+  return toBlob(unlockedBytes, 'application/pdf');
 }
 
 /**
@@ -286,8 +285,10 @@ export async function executeBatchQueue(
   items: BatchItem[],
   options: BatchProcessingOptions
 ): Promise<BatchItem[]> {
-  const concurrency = Math.max(1, Math.min(3, options.concurrency ?? 2));
-  const queue = [...items];
+  const concurrency = Math.max(
+    1,
+    Math.min(3, options.concurrency ?? getDeviceCapabilities().recommendedMaxConcurrency)
+  );
   const updatedItems = new Map<string, BatchItem>();
 
   items.forEach((item) => updatedItems.set(item.id, { ...item }));
@@ -307,25 +308,11 @@ export async function executeBatchQueue(
 
   updateOverall();
 
-  const worker = async () => {
-    while (queue.length > 0) {
-      if (options.signal?.aborted) {
-        // Mark all remaining pending items as cancelled
-        while (queue.length > 0) {
-          const rem = queue.shift()!;
-          if (rem.status === 'pending') {
-            rem.status = 'cancelled';
-            rem.statusMessage = 'Cancelled';
-            notifyItem(rem);
-            finishedCount++;
-            updateOverall();
-          }
-        }
-        break;
-      }
-
-      const current = queue.shift();
-      if (!current || current.status !== 'pending') continue;
+  const poolItems = items.map((it) => updatedItems.get(it.id)!);
+  await runBoundedPool(
+    poolItems,
+    async (current) => {
+      if (current.status !== 'pending') return;
 
       current.status = 'processing';
       current.progress = 20;
@@ -364,12 +351,21 @@ export async function executeBatchQueue(
         finishedCount++;
         updateOverall();
       }
+    },
+    {
+      concurrency,
+      signal: options.signal,
+      onCancelRemaining: (rem) => {
+        if (rem.status === 'pending') {
+          rem.status = 'cancelled';
+          rem.statusMessage = 'Cancelled';
+          notifyItem(rem);
+          finishedCount++;
+          updateOverall();
+        }
+      },
     }
-  };
-
-  // Launch workers up to bounded concurrency limit
-  const workers = Array.from({ length: concurrency }, () => worker());
-  await Promise.all(workers);
+  );
 
   return items.map((it) => updatedItems.get(it.id) || it);
 }

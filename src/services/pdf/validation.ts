@@ -76,7 +76,7 @@ export async function validatePdfStructure(
 
   // 3. Trailer / EOF Check
   const tailBytes = new Uint8Array(buffer.slice(Math.max(0, fileSizeBytes - 1024)));
-  const tailStr = String.fromCharCode(...tailBytes);
+  const tailStr = new TextDecoder('latin1').decode(tailBytes);
   const hasEof = tailStr.includes('%%EOF');
 
   if (!hasEof) {
@@ -88,9 +88,8 @@ export async function validatePdfStructure(
   }
 
   // 4. Low-level text scan for security-sensitive markers
-  // (Scan chunks to avoid massive string allocation)
   const probeChunk = new Uint8Array(buffer.slice(0, Math.min(fileSizeBytes, 500000)));
-  const probeStr = String.fromCharCode(...probeChunk);
+  const probeStr = new TextDecoder('latin1').decode(probeChunk);
 
   const hasLinearization = probeStr.includes('/Linearized');
   let hasJavaScript = probeStr.includes('/JavaScript') || probeStr.includes('/JS ');

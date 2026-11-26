@@ -231,9 +231,9 @@ export const CompressWorkspace: React.FC<CompressWorkspaceProps> = ({
       {!file ? (
         <div className="compress-upload-container">
           <div className="compress-hero-box">
-            <h2>Fast, Private PDF Compression</h2>
+            <h2>Compress PDF</h2>
             <p>
-              Reduce file size locally in your browser. No server uploads, no privacy compromises.
+              Reduce PDF file size locally inside your browser without uploading files
             </p>
           </div>
           <FileUpload
@@ -472,8 +472,8 @@ export const CompressWorkspace: React.FC<CompressWorkspaceProps> = ({
               {isProcessing ? (
                 <div className="processing-indicator">
                   <div className="processing-row">
-                    <Loader2 size={18} className="btn-spinner" />
-                    <span>{progressText || 'Compressing document...'}</span>
+                    <Loader2 size={18} className="spin-icon" />
+                    <span>{progressText || 'Compressing document…'}</span>
                   </div>
                   <Button variant="danger" size="sm" onClick={handleCancel}>
                     Cancel

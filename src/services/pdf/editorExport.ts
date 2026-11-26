@@ -26,6 +26,7 @@ import {
 } from '../../types/editor';
 import { hexToPdfRgb, toPdfLibCoordinates } from './editorCoordinates';
 import { applyContentStreamEdits } from './contentEditorEngine';
+import { applyPermanentRedaction, RedactionArea } from './redaction';
 import { toBlob } from '../../utils/file';
 
 /**
@@ -487,36 +488,6 @@ async function drawSignatureOnPage(
 }
 
 /**
- * Draws solid opaque black box on a PDF page for redactions.
- */
-function drawRedactionOnPage(
-  page: PDFPage,
-  obj: RedactionEditorObject,
-  pWidth: number,
-  pHeight: number,
-  rotation: number
-): void {
-  const coords = toPdfLibCoordinates(
-    obj.x,
-    obj.y,
-    obj.width,
-    obj.height,
-    pWidth,
-    pHeight,
-    rotation
-  );
-
-  page.drawRectangle({
-    x: coords.x,
-    y: coords.y,
-    width: coords.width,
-    height: coords.height,
-    color: rgb(0, 0, 0),
-    opacity: 1,
-  });
-}
-
-/**
  * Core Export Engine: Applies all editor objects onto the original PDF document.
  * Returns a downloadable PDF Blob.
  */
@@ -557,10 +528,23 @@ export async function exportEditedPdf(
   const fontCache = new FontCache(pdfDoc);
 
   const totalPages = pdfDoc.getPageCount();
+  const pendingRedactions: RedactionArea[] = [];
 
-  // Group objects by 1-based page number
+  // Group non-redaction objects by 1-based page number; defer redactions to permanent rasterization
   const pageObjectsMap = new Map<number, EditorObject[]>();
   for (const obj of objects) {
+    if (obj.type === 'redaction') {
+      const rObj = obj as RedactionEditorObject;
+      pendingRedactions.push({
+        id: rObj.id,
+        pageNumber: rObj.pageNumber,
+        x: rObj.x,
+        y: rObj.y,
+        width: rObj.width,
+        height: rObj.height,
+      });
+      continue;
+    }
     const list = pageObjectsMap.get(obj.pageNumber) || [];
     list.push(obj);
     pageObjectsMap.set(obj.pageNumber, list);
@@ -602,15 +586,24 @@ export async function exportEditedPdf(
         case 'signature':
           await drawSignatureOnPage(pdfDoc, page, item as SignatureEditorObject, pWidth, pHeight, rotation);
           break;
-        case 'redaction':
-          drawRedactionOnPage(page, item as RedactionEditorObject, pWidth, pHeight, rotation);
-          break;
       }
     }
   }
 
   onProgress?.(8, 10, 'Compiling and optimizing PDF output...');
   const pdfBytes = await pdfDoc.save();
+
+  if (pendingRedactions.length > 0) {
+    onProgress?.(9, 10, 'Permanently burning redactions...');
+    const redacted = await applyPermanentRedaction(new Uint8Array(pdfBytes), pendingRedactions, {
+      mode: 'raster-guaranteed',
+    });
+    if (!redacted.securityVerified) {
+      throw new Error('Redaction verification detected unremoved underlying text.');
+    }
+    onProgress?.(10, 10, 'Document ready for download.');
+    return redacted.blob;
+  }
 
   onProgress?.(10, 10, 'Document ready for download.');
   return toBlob(pdfBytes, 'application/pdf');

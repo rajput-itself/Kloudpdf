@@ -1,14 +1,14 @@
 .diff-modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.55);
+  background-color: rgba(9, 9, 11, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1050;
   padding: 16px;
   backdrop-filter: blur(2px);
-  animation: diffFadeIn 0.2s ease-out;
+  animation: diffFadeIn 150ms ease-out;
 }
 
 @keyframes diffFadeIn {
@@ -20,9 +20,10 @@
   width: 900px;
   max-width: 95vw;
   max-height: 90vh;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -33,8 +34,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #dadce0;
+  background-color: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .diff-modal-title {
@@ -43,25 +44,25 @@
   gap: 10px;
   font-size: 15px;
   font-weight: 600;
-  color: #202124;
+  color: var(--color-text-main);
 }
 
 .diff-close-btn {
   background: none;
   border: none;
   padding: 6px;
-  border-radius: 6px;
-  color: #5f6368;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .diff-close-btn:hover {
-  background-color: #e8eaed;
-  color: #202124;
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-main);
 }
 
 .diff-view-switcher {
@@ -69,27 +70,27 @@
   justify-content: center;
   gap: 6px;
   padding: 10px 16px;
-  background-color: #f1f3f4;
-  border-bottom: 1px solid #e8eaed;
+  background-color: var(--color-bg-subtle);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .diff-switch-tab {
   padding: 5px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: none;
   font-size: 12px;
   font-weight: 500;
-  color: #5f6368;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .diff-switch-tab.active {
-  background-color: #ffffff;
-  border-color: #dadce0;
-  color: #1a73e8;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background-color: var(--color-bg-card);
+  border-color: var(--color-border);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .diff-preview-container {
@@ -98,7 +99,7 @@
   padding: 16px 20px;
   overflow-y: auto;
   flex: 1;
-  background-color: #eef0f3;
+  background-color: var(--color-bg-canvas);
   justify-content: center;
   min-height: 280px;
 }
@@ -109,34 +110,34 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: #ffffff;
-  border-radius: 8px;
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-md);
   padding: 12px;
-  border: 1px solid #dadce0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--color-border);
 }
 
 .diff-pane-badge {
   position: absolute;
   top: 12px;
   left: 12px;
+  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
   z-index: 2;
 }
 
-.badge-orig {
-  background-color: #f1f3f4;
-  color: #5f6368;
-  border: 1px solid #dadce0;
+.diff-pane-badge.badge-orig {
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
-.badge-edited {
-  background-color: #e8f0fe;
-  color: #1a73e8;
-  border: 1px solid #c2e7ff;
+.diff-pane-badge.badge-edited {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
 }
 
 .diff-img-wrapper {
@@ -152,26 +153,27 @@
   max-width: 100%;
   max-height: 360px;
   object-fit: contain;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  border-radius: 4px;
+  background-color: #ffffff;
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-xs);
 }
 
 .diff-placeholder {
   font-size: 12px;
-  color: #5f6368;
+  color: var(--color-text-muted);
   padding: 40px;
 }
 
 .diff-summary-panel {
   padding: 14px 20px;
-  background-color: #ffffff;
-  border-top: 1px solid #e8eaed;
+  background-color: var(--color-bg-card);
+  border-top: 1px solid var(--color-border);
 }
 
 .diff-summary-title {
   font-size: 13px;
   font-weight: 600;
-  color: #202124;
+  color: var(--color-text-main);
   margin: 0 0 8px 0;
 }
 
@@ -186,12 +188,12 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: #f8f9fa;
-  border: 1px solid #e8eaed;
-  border-radius: 6px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 12px;
-  color: #3c4043;
+  color: var(--color-text-secondary);
 }
 
 .diff-detail-list {
@@ -210,24 +212,25 @@
 }
 
 .diff-action-tag {
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .tag-replace {
-  background-color: #e8f0fe;
-  color: #1a73e8;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
 }
 
 .tag-delete {
-  background-color: #fce8e6;
-  color: #d93025;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 .diff-text-old {
-  color: #d93025;
+  color: var(--color-danger);
   text-decoration: line-through;
   max-width: 200px;
   overflow: hidden;
@@ -236,11 +239,11 @@
 }
 
 .diff-arrow {
-  color: #5f6368;
+  color: var(--color-text-muted);
 }
 
 .diff-text-new {
-  color: #188038;
+  color: var(--color-success);
   font-weight: 500;
   max-width: 200px;
   overflow: hidden;
@@ -253,6 +256,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background-color: #f8f9fa;
-  border-top: 1px solid #dadce0;
+  background-color: var(--color-bg);
+  border-top: 1px solid var(--color-border);
 }

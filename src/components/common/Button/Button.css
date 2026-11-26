@@ -5,7 +5,7 @@
   gap: var(--space-2);
   font-weight: 500;
   border-radius: var(--radius-md);
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
   user-select: none;
   white-space: nowrap;
   text-decoration: none;
@@ -20,7 +20,7 @@
 }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -39,28 +39,22 @@
 }
 
 .btn-md {
-  height: 42px;
+  height: 40px;
   padding: 0 var(--space-4);
   font-size: var(--text-sm);
 }
 
-@media (min-width: 480px) {
-  .btn-md {
-    height: 40px;
-  }
-}
-
 .btn-lg {
-  height: 48px;
+  height: 44px;
   padding: 0 var(--space-6);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 /* Variants */
 .btn-primary {
   background-color: var(--color-primary);
-  color: var(--color-text-inverse);
+  color: #ffffff;
   border: 1px solid var(--color-primary);
 }
 
@@ -76,7 +70,7 @@
 }
 
 .btn-secondary {
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-card);
   color: var(--color-text-main);
   border: 1px solid var(--color-border);
 }
@@ -103,13 +97,12 @@
 
 .btn-danger {
   background-color: var(--color-danger);
-  color: var(--color-text-inverse);
+  color: #ffffff;
   border: 1px solid var(--color-danger);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #b3261e;
-  border-color: #b3261e;
+  opacity: 0.92;
 }
 
 .btn-ghost {
@@ -132,6 +125,10 @@
   border-radius: 50%;
   animation: spin 0.75s linear infinite;
   display: inline-block;
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
 }
 
 @keyframes spin {

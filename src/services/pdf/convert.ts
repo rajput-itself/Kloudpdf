@@ -1,7 +1,9 @@
+import JSZip from 'jszip';
 import { PDFDocument, PageSizes } from 'pdf-lib';
 import { loadPdfDocument, renderPageToCanvas } from './render';
-import { createZipArchive, ZipFileInput } from '../../utils/zip';
 import { toBlob } from '../../utils/file';
+import { ResourceScope } from '../../utils/disposableScope';
+import { yieldToBrowser } from '../../utils/taskPool';
 
 export interface JpgToPdfOptions {
   orientation?: 'portrait' | 'landscape' | 'fit';
@@ -130,39 +132,36 @@ export async function convertPdfToJpg(
   const totalPages = pdfDoc.numPages;
 
   const baseName = file.name.replace(/\.[^/.]+$/, '');
-  const zipInputs: ZipFileInput[] = [];
+  const zip = new JSZip();
   let singlePageBlob: Blob | null = null;
 
   for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
     onProgress?.(pageNum, totalPages);
 
-    const canvas = document.createElement('canvas');
-    // High resolution render for crisp output
-    await renderPageToCanvas(pdfDoc, pageNum, canvas, { scale: 1.5 });
+    const scope = new ResourceScope();
+    let jpegBlob: Blob;
+    try {
+      const canvas = scope.trackCanvas(document.createElement('canvas'));
+      await renderPageToCanvas(pdfDoc, pageNum, canvas, { scale: 1.5 });
 
-    const jpegBlob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          // Immediately free canvas memory buffer
-          canvas.width = 0;
-          canvas.height = 0;
-          if (blob) resolve(blob);
-          else reject(new Error(`Failed to convert page ${pageNum} to JPEG`));
-        },
-        'image/jpeg',
-        0.92
-      );
-    });
+      jpegBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error(`Failed to convert page ${pageNum} to JPEG`))),
+          'image/jpeg',
+          0.92
+        );
+      });
+    } finally {
+      scope.dispose();
+    }
 
     if (totalPages === 1) {
       singlePageBlob = jpegBlob;
     } else {
       const pageBuffer = await jpegBlob.arrayBuffer();
-      zipInputs.push({
-        name: `${baseName}_page_${pageNum}.jpg`,
-        data: new Uint8Array(pageBuffer),
-      });
+      zip.file(`${baseName}_page_${pageNum}.jpg`, new Uint8Array(pageBuffer));
     }
+    await yieldToBrowser();
   }
 
   if (totalPages === 1 && singlePageBlob) {
@@ -174,7 +173,7 @@ export async function convertPdfToJpg(
     };
   }
 
-  const zipBlob = createZipArchive(zipInputs);
+  const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
   return {
     blob: zipBlob,
     filename: `${baseName}_images.zip`,

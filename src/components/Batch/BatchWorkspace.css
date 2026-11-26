@@ -1,13 +1,13 @@
 /* ==========================================================================
-   KloudPDF — Batch PDF Processing Workspace Styling
+   KloudPDF — Batch PDF Processing Workspace
    ========================================================================== */
 
 .batch-workspace {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background-color: #f8f9fa;
-  color: #202124;
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
 }
 
 /* Header */
@@ -15,10 +15,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
-  padding: 0 1.5rem;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e0e0e0;
+  height: var(--header-height);
+  padding: 0 var(--space-5);
+  background-color: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -27,35 +27,37 @@
 .batch-topbar-left {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: var(--space-4);
 }
 
 .batch-title-box {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .batch-title {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   margin: 0;
-  color: #202124;
+  color: var(--color-text-main);
 }
 
 .batch-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  background-color: #f1f3f4;
-  color: #5f6368;
-  padding: 0.2rem 0.55rem;
-  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  background-color: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
 }
 
 .batch-topbar-right {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-2);
 }
 
 /* Layout */
@@ -63,27 +65,25 @@
   display: grid;
   grid-template-columns: 340px 1fr;
   flex: 1;
-  min-height: calc(100vh - 60px);
+  min-height: calc(100vh - var(--header-height));
 }
 
 /* Sidebar */
 .batch-sidebar {
-  background-color: #ffffff;
-  border-right: 1px solid #e0e0e0;
-  padding: 1.5rem;
+  background-color: var(--color-bg-card);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-4);
   overflow-y: auto;
-  max-height: calc(100vh - 60px);
+  max-height: calc(100vh - var(--header-height));
 }
 
 .sidebar-section-label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #5f6368;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
   display: block;
 }
 
@@ -91,7 +91,7 @@
 .batch-preset-section {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
 }
 
 .preset-header {
@@ -103,13 +103,13 @@
 .save-preset-btn {
   background: none;
   border: none;
-  color: #1a73e8;
-  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 4px;
 }
 
 .save-preset-btn:hover {
@@ -118,130 +118,129 @@
 
 .preset-select {
   width: 100%;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.85rem;
-  border: 1px solid #dadce0;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #202124;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
 }
 
 .delete-preset-btn {
   background: none;
   border: none;
-  color: #d93025;
-  font-size: 0.725rem;
+  color: var(--color-danger);
+  font-size: 11.5px;
   text-align: right;
   cursor: pointer;
-  padding: 0.2rem 0;
+  padding: 2px 0;
 }
 
 /* Operation Tabs */
 .operation-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.45rem;
-  margin-top: 0.4rem;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .op-tab {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #dadce0;
-  background-color: #ffffff;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
   font-weight: 500;
-  color: #3c4043;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .op-tab:hover:not(:disabled) {
-  border-color: #1a73e8;
-  background-color: #f8fafd;
+  border-color: var(--color-border-hover);
+  color: var(--color-text-main);
 }
 
 .op-tab.active {
-  border-color: #174ea6;
-  background-color: #e8f0fe;
-  color: #174ea6;
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
-/* Config Card */
+/* Config Section */
 .batch-config-card {
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .config-fields {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
 }
 
 .cfg-label {
-  font-size: 0.775rem;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: #3c4043;
+  color: var(--color-text-main);
 }
 
 .config-fields select,
 .config-fields input {
   width: 100%;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.825rem;
-  border: 1px solid #dadce0;
-  border-radius: 6px;
-  background-color: #ffffff;
-  color: #202124;
+  padding: 7px 10px;
+  font-size: 13px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-card);
+  color: var(--color-text-main);
 }
 
 .cfg-info-note {
-  font-size: 0.775rem;
-  color: #5f6368;
+  font-size: 12px;
+  color: var(--color-text-secondary);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .batch-action-panel {
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: var(--space-4);
 }
 
 /* Right Main Area */
 .batch-main {
-  padding: 1.5rem 2rem;
+  padding: var(--space-6) var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: var(--space-5);
   overflow-y: auto;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .batch-main.drag-over {
-  background-color: #e8f0fe;
-  border: 2px dashed #1a73e8;
+  background-color: var(--color-primary-light);
+  border: 2px dashed var(--color-primary);
 }
 
 /* Progress Card */
 .batch-progress-card {
-  background-color: #ffffff;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 10px;
 }
 
 .progress-top-row {
@@ -253,25 +252,26 @@
 .progress-stats {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .stats-label {
-  font-size: 0.825rem;
-  color: #5f6368;
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
 .stats-val {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #202124;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--color-text-main);
 }
 
 .clear-completed-link {
   background: none;
   border: none;
-  color: #1a73e8;
-  font-size: 0.8rem;
+  color: var(--color-primary);
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -282,53 +282,53 @@
 
 .overall-progress-bar-bg {
   width: 100%;
-  height: 6px;
-  background-color: #f1f3f4;
+  height: 5px;
+  background-color: var(--color-bg-subtle);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .overall-progress-bar-fill {
   height: 100%;
-  background-color: #1a73e8;
-  transition: width 0.3s ease;
+  background-color: var(--color-primary);
+  transition: width 250ms ease;
 }
 
 /* Empty Dropzone */
 .batch-empty-dropzone {
-  border: 2px dashed #dadce0;
-  border-radius: 12px;
-  padding: 4rem 2rem;
+  border: 1.5px dashed var(--color-border-hover);
+  border-radius: var(--radius-lg);
+  padding: var(--space-12) var(--space-6);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 0.75rem;
-  background-color: #ffffff;
+  gap: var(--space-3);
+  background-color: var(--color-bg-card);
   cursor: pointer;
-  transition: border-color 0.2s ease;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .batch-empty-dropzone:hover {
-  border-color: #1a73e8;
-  background-color: #f8fafd;
+  border-color: var(--color-primary);
+  background-color: var(--color-bg-card-hover);
 }
 
 .drop-icon {
-  color: #1a73e8;
+  color: var(--color-primary);
 }
 
 .batch-empty-dropzone h3 {
-  font-size: 1.15rem;
+  font-size: var(--text-lg);
   font-weight: 600;
   margin: 0;
-  color: #202124;
+  color: var(--color-text-main);
 }
 
 .batch-empty-dropzone p {
-  font-size: 0.875rem;
-  color: #5f6368;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
@@ -336,44 +336,43 @@
 .batch-items-container {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 8px;
 }
 
 .batch-item-card {
-  background-color: #ffffff;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  padding: 0.85rem 1rem;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  transition: all 0.2s ease;
+  gap: var(--space-4);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .batch-item-card:hover {
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border-color: var(--color-border-hover);
 }
 
 .batch-item-card.status-completed {
-  border-color: #a8dab5;
-  background-color: #fbfefb;
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border));
 }
 
 .batch-item-card.status-failed {
-  border-color: #f6aea9;
-  background-color: #fffbfa;
+  border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
 }
 
 .batch-item-card.status-processing {
-  border-color: #aecbfa;
-  background-color: #f8fbff;
+  border-color: var(--color-primary);
 }
 
 .item-num {
-  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: #5f6368;
-  min-width: 20px;
+  color: var(--color-text-muted);
+  min-width: 24px;
 }
 
 .item-details {
@@ -381,133 +380,138 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 5px;
 }
 
 .item-name-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .item-filename {
-  font-size: 0.875rem;
+  font-size: 13.5px;
   font-weight: 600;
-  color: #202124;
+  color: var(--color-text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
+  max-width: 340px;
 }
 
 .item-size-badge,
 .item-pages-badge {
-  font-size: 0.725rem;
-  color: #5f6368;
-  background-color: #f1f3f4;
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-subtle);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
 .item-progress-track {
   width: 100%;
   height: 4px;
-  background-color: #e8f0fe;
+  background-color: var(--color-primary-light);
   border-radius: 2px;
   overflow: hidden;
-  margin: 0.2rem 0;
 }
 
 .item-progress-fill {
   height: 100%;
-  background-color: #1a73e8;
-  transition: width 0.2s ease;
+  background-color: var(--color-primary);
+  transition: width 200ms ease;
 }
 
 .item-status-row {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  font-size: 0.75rem;
+  gap: 4px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: capitalize;
 }
 
 .status-badge.completed {
-  color: #137333;
+  color: var(--color-success);
 }
 
 .status-badge.failed {
-  color: #d93025;
+  color: var(--color-danger);
 }
 
 .status-badge.processing {
-  color: #1a73e8;
+  color: var(--color-primary);
 }
 
 .status-badge.pending,
 .status-badge.cancelled {
-  color: #5f6368;
+  color: var(--color-text-secondary);
 }
 
 .item-duration,
 .item-processed-size {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: #5f6368;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
 }
 
 .item-processed-size {
-  color: #1a73e8;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .item-error-msg {
-  font-size: 0.75rem;
-  color: #d93025;
+  font-size: 12px;
+  color: var(--color-danger);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 250px;
+  max-width: 260px;
 }
 
 .item-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .remove-item-btn {
   background: none;
   border: none;
-  color: #5f6368;
+  color: var(--color-text-muted);
   cursor: pointer;
-  padding: 0.35rem;
-  border-radius: 4px;
+  padding: 6px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .remove-item-btn:hover {
-  background-color: #fce8e6;
-  color: #d93025;
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 
 /* Preset Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.45);
+  background-color: rgba(9, 9, 11, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -515,52 +519,54 @@
 }
 
 .preset-modal-card {
-  background-color: #ffffff;
-  border-radius: 10px;
+  background-color: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   width: 90%;
   max-width: 440px;
-  padding: 1.5rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: var(--space-3);
 }
 
 .preset-modal-card h3 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #202124;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-text-main);
 }
 
 .modal-desc {
-  font-size: 0.825rem;
-  color: #5f6368;
+  font-size: 13px;
+  color: var(--color-text-secondary);
   margin: 0;
 }
 
 .modal-label {
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: #3c4043;
+  color: var(--color-text-main);
 }
 
 .modal-input {
   width: 100%;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid #dadce0;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-hover);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  font-size: 13.5px;
 }
 
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
-/* Responsive */
 @media (max-width: 900px) {
   .batch-body {
     grid-template-columns: 1fr;
@@ -568,7 +574,11 @@
 
   .batch-sidebar {
     border-right: none;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--color-border);
     max-height: none;
+  }
+
+  .batch-main {
+    padding: var(--space-4);
   }
 }

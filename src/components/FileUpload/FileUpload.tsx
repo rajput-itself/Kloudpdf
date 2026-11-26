@@ -1,8 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { UploadCloud, ShieldCheck, AlertCircle } from 'lucide-react';
 import { ToolDefinition } from '../../types';
-import { isValidFileType } from '../../utils/file';
-import { validateFileSignature } from '../../utils/fileSecurity';
+import { ingestUserFiles } from '../../services/security/ingestFile';
 import './FileUpload.css';
 
 interface FileUploadProps {
@@ -13,6 +12,7 @@ interface FileUploadProps {
 export const FileUpload: React.FC<FileUploadProps> = ({ tool, onFilesSelected }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -30,25 +30,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({ tool, onFilesSelected })
   const processFileList = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     setErrorMessage(null);
+    setWarningMessage(null);
 
-    const validFiles: File[] = [];
-    const errors: string[] = [];
-
-    for (const file of Array.from(fileList)) {
-      if (!isValidFileType(file, tool.acceptedFileTypes)) {
-        errors.push(`Invalid file format for "${file.name}". Supported: ${tool.acceptedFileTypes}`);
-        continue;
-      }
-      const sigCheck = await validateFileSignature(file, tool.acceptedFileTypes);
-      if (sigCheck.valid) {
-        validFiles.push(file);
-      } else {
-        errors.push(sigCheck.reason || `Invalid or corrupted file content: "${file.name}"`);
-      }
-    }
+    const { validFiles, errors, warnings } = await ingestUserFiles(fileList, tool.acceptedFileTypes);
 
     if (errors.length > 0) {
       setErrorMessage(errors[0]!);
+    }
+    if (warnings.length > 0) {
+      setWarningMessage(warnings[0]!);
     }
 
     if (validFiles.length > 0) {
@@ -131,6 +121,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({ tool, onFilesSelected })
           <span>Files stay strictly on your device. Never uploaded to any server.</span>
         </div>
       </div>
+
+      {warningMessage && (
+        <div className="upload-error-alert" role="status" style={{ backgroundColor: 'var(--bg-subtle)', borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}>
+          <AlertCircle size={16} />
+          <span>{warningMessage}</span>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="upload-error-alert" role="alert">

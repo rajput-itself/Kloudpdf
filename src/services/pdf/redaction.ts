@@ -1,8 +1,8 @@
-import { PDFDocument, rgb } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import { loadPdfDocument, renderPageToCanvas } from './render';
-import { extractPageExistingContent } from './contentEditorEngine';
 import { toBlob } from '../../utils/file';
+import { ResourceScope } from '../../utils/disposableScope';
 
 export interface RedactionArea {
   id: string;
@@ -21,21 +21,6 @@ export interface RedactionResult {
   securityVerified: boolean;
   residualCheckPassed: boolean;
   residualFound: string[];
-}
-
-/**
- * Checks whether two rectangles intersect.
- */
-function rectsIntersect(
-  r1: { x: number; y: number; width: number; height: number },
-  r2: { x: number; y: number; width: number; height: number }
-): boolean {
-  return !(
-    r2.x >= r1.x + r1.width ||
-    r2.x + r2.width <= r1.x ||
-    r2.y >= r1.y + r1.height ||
-    r2.y + r2.height <= r1.y
-  );
 }
 
 /**
@@ -93,47 +78,18 @@ export async function applyPermanentRedaction(
     const pageRedactions = redactionsByPage.get(pageNum);
 
     if (pageRedactions && pageRedactions.length > 0) {
-      // Check if page contains embedded images intersecting the redaction area
-      let hasIntersectingImage = false;
-      try {
-        const pageProxy = await srcPdf.getPage(pageNum);
-        const vp = pageProxy.getViewport({ scale: 1 });
-        const content = await extractPageExistingContent(
-          srcPdf,
-          pageNum,
-          vp.height,
-          vp.width,
-          (pageProxy.rotate || 0) % 360
-        );
-        for (const img of content.images) {
-          for (const redaction of pageRedactions) {
-            if (
-              rectsIntersect(
-                { x: img.x, y: img.y, width: img.width, height: img.height },
-                redaction
-              )
-            ) {
-              hasIntersectingImage = true;
-              break;
-            }
-          }
-          if (hasIntersectingImage) break;
-        }
-      } catch {
-        hasIntersectingImage = true;
-      }
+      // Fail-Closed Strategy: pages containing redactions are always rasterized at high DPI
+      // and rebuilt so no underlying text/image streams survive beneath the redaction mask.
+      const pdfPage = await srcPdf.getPage(pageNum);
+      const viewport = pdfPage.getViewport({ scale: 1 });
+      const pageWidth = viewport.width;
+      const pageHeight = viewport.height;
 
-      // For pages with image redactions or when mode is raster-guaranteed:
-      // Render to high-DPI canvas, bake solid black pixels, destroy underlying streams.
-      if (options.mode === 'raster-guaranteed' || hasIntersectingImage) {
-        const pdfPage = await srcPdf.getPage(pageNum);
-        const viewport = pdfPage.getViewport({ scale: 1 });
-        const pageWidth = viewport.width;
-        const pageHeight = viewport.height;
-
-        let imgBuffer: ArrayBuffer;
-        if (typeof document !== 'undefined') {
-          const canvas = document.createElement('canvas');
+      let imgBuffer: ArrayBuffer;
+      if (typeof document !== 'undefined') {
+        const scope = new ResourceScope();
+        try {
+          const canvas = scope.trackCanvas(document.createElement('canvas'));
           await renderPageToCanvas(srcPdf, pageNum, canvas, { scale: 2.0 });
 
           const ctx = canvas.getContext('2d');
@@ -155,54 +111,34 @@ export async function applyPermanentRedaction(
           const bakedBlob = await new Promise<Blob>((res, rej) => {
             canvas.toBlob((b) => (b ? res(b) : rej(new Error('Redaction render failed'))), 'image/jpeg', 0.94);
           });
-
-          canvas.width = 0;
-          canvas.height = 0;
           imgBuffer = await bakedBlob.arrayBuffer();
-        } else {
-          // Headless Node.js test environment mock: valid 1x1 JPEG binary
-          imgBuffer = new Uint8Array([
-            0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
-            0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
-            0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
-            0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x2e, 0x27, 0x20,
-            0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29, 0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27,
-            0x39, 0x3d, 0x38, 0x32, 0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01,
-            0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x1f, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01,
-            0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f,
-            0x00, 0xbf, 0x00, 0xff, 0xd9,
-          ]).buffer;
+        } finally {
+          scope.dispose();
         }
-
-        const embeddedImg = await outPdfDoc.embedJpg(imgBuffer);
-        const newPage = outPdfDoc.addPage([pageWidth, pageHeight]);
-        newPage.drawImage(embeddedImg, {
-          x: 0,
-          y: 0,
-          width: pageWidth,
-          height: pageHeight,
-        });
       } else {
-        // Vector text redaction: copy native page, strip overlapping text operators, and draw solid black box
-        const [copiedPage] = await outPdfDoc.copyPages(origPdfLibDoc, [pageNum - 1]);
-        if (copiedPage) {
-          const pHeight = copiedPage.getHeight();
-
-          // Overlay true opaque black boxes over redacted regions
-          for (const area of pageRedactions) {
-            copiedPage.drawRectangle({
-              x: area.x,
-              y: pHeight - area.y - area.height,
-              width: area.width,
-              height: area.height,
-              color: rgb(0, 0, 0),
-              opacity: 1,
-            });
-          }
-          outPdfDoc.addPage(copiedPage);
-        }
+        // Headless Node.js test environment mock: valid 1x1 JPEG binary
+        imgBuffer = new Uint8Array([
+          0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48,
+          0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08,
+          0x07, 0x07, 0x07, 0x09, 0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
+          0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20, 0x24, 0x2e, 0x27, 0x20,
+          0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29, 0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27,
+          0x39, 0x3d, 0x38, 0x32, 0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01,
+          0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x1f, 0x00, 0x00, 0x01, 0x05, 0x01, 0x01,
+          0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04,
+          0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f,
+          0x00, 0xbf, 0x00, 0xff, 0xd9,
+        ]).buffer;
       }
+
+      const embeddedImg = await outPdfDoc.embedJpg(imgBuffer);
+      const newPage = outPdfDoc.addPage([pageWidth, pageHeight]);
+      newPage.drawImage(embeddedImg, {
+        x: 0,
+        y: 0,
+        width: pageWidth,
+        height: pageHeight,
+      });
     } else {
       // Unredacted pages: Copy native vector page
       const [copiedPage] = await outPdfDoc.copyPages(origPdfLibDoc, [pageNum - 1]);
@@ -215,23 +151,32 @@ export async function applyPermanentRedaction(
   const pdfBytes = await outPdfDoc.save();
   const resultBlob = toBlob(pdfBytes, 'application/pdf');
 
-  // Mandatory Post-Redaction Security Verification
+  // Mandatory Post-Redaction Security Verification (verifies zero residual vector text on redacted pages)
   const residualFound: string[] = [];
-  if (allMarkedTexts.length > 0 && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     try {
       const verifyPdf = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes.slice(0)) }).promise;
       for (const pageNum of redactionsByPage.keys()) {
         const page = await verifyPdf.getPage(pageNum);
         const textContent = await page.getTextContent();
         const extracted = textContent.items
-          .map((item: any) => (item.str ? item.str.toLowerCase() : ''))
-          .join(' ');
+          .map((item: any) => (item.str ? item.str : ''))
+          .join(' ')
+          .trim();
 
-        for (const marked of allMarkedTexts) {
-          if (extracted.includes(marked.toLowerCase())) {
-            if (!residualFound.includes(marked)) {
-              residualFound.push(marked);
+        if (extracted.length > 0) {
+          const lower = extracted.toLowerCase();
+          let matchedMarked = false;
+          for (const marked of allMarkedTexts) {
+            if (lower.includes(marked.toLowerCase())) {
+              matchedMarked = true;
+              if (!residualFound.includes(marked)) {
+                residualFound.push(marked);
+              }
             }
+          }
+          if (!matchedMarked) {
+            residualFound.push(`Unexpected residual text on redacted page ${pageNum}`);
           }
         }
       }
