@@ -1,7 +1,7 @@
-import DOMPurify from 'dompurify';
 import html2canvas from 'html2canvas';
 import { PDFDocument } from 'pdf-lib';
 import { toBlob } from '../../utils/file';
+import { sanitizeHtmlStrict } from '../../utils/fileSecurity';
 
 export type HtmlPageSize = 'a4' | 'a3' | 'letter' | 'legal';
 export type HtmlOrientation = 'portrait' | 'landscape';
@@ -21,15 +21,11 @@ const PAGE_DIMENSIONS: Record<HtmlPageSize, [number, number]> = {
 };
 
 /**
- * Sanitizes user-provided HTML string using DOMPurify.
- * Strictly strips dangerous scripts, objects, and event handlers.
+ * Sanitizes user-provided HTML string using strict DOMPurify policy.
+ * Strips dangerous scripts, objects, event handlers, and blocks external network resources.
  */
 export function sanitizeHtml(rawHtml: string): string {
-  return DOMPurify.sanitize(rawHtml, {
-    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'formaction'],
-    ALLOW_DATA_ATTR: false,
-  });
+  return sanitizeHtmlStrict(rawHtml);
 }
 
 /**

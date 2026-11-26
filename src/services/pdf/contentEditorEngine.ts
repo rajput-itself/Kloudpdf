@@ -536,7 +536,7 @@ export async function applyContentStreamEdits(
     for (const item of pageTexts) {
       if (item.isModified && !item.isDeleted && item.text.trim()) {
         // Select matching standard font
-        let fontRef: StandardFonts = StandardFonts.Helvetica;
+        let fontRef: StandardFonts;
         if (item.fontFamily === 'TimesRoman') {
           if (item.isBold && item.isItalic) fontRef = StandardFonts.TimesRomanBoldItalic;
           else if (item.isBold) fontRef = StandardFonts.TimesRomanBold;

@@ -52,6 +52,10 @@ import { convertHtmlToPdf, HtmlPageSize, HtmlOrientation, sanitizeHtml } from '.
 import { convertWordToPdf, renderDocxPreview } from '../../services/conversion/wordToPdf';
 import { convertExcelToPdf, parseExcelWorkbook, getSheetHtmlTable } from '../../services/conversion/excelToPdf';
 import { convertPowerPointToPdf, inspectPptx, PptxInspectionResult } from '../../services/conversion/powerpointToPdf';
+import { convertPdfToWord } from '../../services/conversion/pdfToWord';
+import { extractTablesFromPdf, exportTablesToSpreadsheet, ExtractedPdfTable } from '../../services/conversion/pdfToExcel';
+import { convertPdfToPptx, PptxAspectRatio, PptxConversionMode } from '../../services/conversion/pdfToPptx';
+import { convertTextOrMarkdownToPdf } from '../../services/conversion/textAndMarkdownToPdf';
 
 // Advanced PDF services
 import { extractTextFromPdf } from '../../services/pdf/textExtraction';
@@ -151,6 +155,26 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
 
   // PowerPoint to PDF options & inspection
   const [pptxInspection, setPptxInspection] = useState<PptxInspectionResult | null>(null);
+  const [selectedPptxSlides, setSelectedPptxSlides] = useState<number[]>([]);
+
+  // PDF to Word options
+  const [pdfToWordOcr, setPdfToWordOcr] = useState<boolean>(true);
+  const [pdfToWordLang, setPdfToWordLang] = useState<'eng' | 'hin' | 'spa' | 'fra' | 'deu'>('eng');
+
+  // PDF to Excel / CSV options & editable preview
+  const [extractedTables, setExtractedTables] = useState<ExtractedPdfTable[]>([]);
+  const [tableWarnings, setTableWarnings] = useState<string[]>([]);
+  const [excelExportFormat, setExcelExportFormat] = useState<'xlsx' | 'csv'>('xlsx');
+  const [isExtractingTables, setIsExtractingTables] = useState<boolean>(false);
+
+  // PDF to PowerPoint options
+  const [pdfToPptxMode, setPdfToPptxMode] = useState<PptxConversionMode>('image-slides');
+  const [pdfToPptxAspect, setPdfToPptxAspect] = useState<PptxAspectRatio>('16:9');
+
+  // Text / Markdown to PDF options
+  const [plainOrMdText, setPlainOrMdText] = useState<string>('# KloudPDF Document\n\nWrite or paste **Markdown** or plain text here to convert into a crisp vector PDF locally.');
+  const [textPageSize, setTextPageSize] = useState<'a4' | 'letter'>('a4');
+  const [textFontSize, setTextFontSize] = useState<number>(11);
 
   // Watermark options
   const [watermarkText, setWatermarkText] = useState('CONFIDENTIAL');
@@ -290,6 +314,23 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
           initialPages.push({ pageNumber: i, rotation: 0, selected: true });
         }
         setPages(initialPages);
+      } else if (tool.id === 'pdf-to-excel') {
+        const initialPages: PDFPageInfo[] = [];
+        for (let i = 1; i <= doc.numPages; i++) {
+          initialPages.push({ pageNumber: i, rotation: 0, selected: true });
+        }
+        setPages(initialPages);
+        setIsExtractingTables(true);
+        try {
+          const tableRes = await extractTablesFromPdf(file, {
+            enableOcrFallback: ocrSearchablePdf,
+            ocrLanguage: ocrLanguage,
+          });
+          setExtractedTables(tableRes.tables);
+          setTableWarnings(tableRes.warnings);
+        } finally {
+          setIsExtractingTables(false);
+        }
       } else {
         const initialPages: PDFPageInfo[] = [];
         for (let i = 1; i <= doc.numPages; i++) {
@@ -361,9 +402,20 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
         try {
           const info = await inspectPptx(single);
           setPptxInspection(info);
+          setSelectedPptxSlides(info.slides.map((s) => s.slideNumber));
         } catch (err) {
           console.error('Failed to inspect PowerPoint file:', err);
           setErrorMessage('Could not parse PowerPoint slides. Please ensure the file is an uncorrupted .pptx presentation.');
+        }
+      }
+      // Text / Markdown (.txt, .md)
+      else if (lowerName.endsWith('.txt') || lowerName.endsWith('.md') || lowerName.endsWith('.markdown')) {
+        try {
+          const text = await single.text();
+          setPlainOrMdText(text);
+        } catch (err) {
+          console.error('Failed to read text/markdown file:', err);
+          setErrorMessage('Could not read text file.');
         }
       }
       // HTML (.html, .htm)
@@ -383,6 +435,20 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
   const handleStartWithHtmlCode = () => {
     setFiles([new File([htmlCode], 'custom_page.html', { type: 'text/html' })]);
     setHtmlInputMode('code');
+    setProcessingState('configured');
+  };
+
+  const handleStartWithTextOrMd = () => {
+    const isMd = tool.id === 'markdown-to-pdf';
+    const sample = isMd
+      ? '# KloudPDF Markdown Export\n\n## Privacy First\n- 100% browser processing\n- Zero server uploads\n\n> Crisp vector typography using pdf-lib.\n'
+      : 'KloudPDF Vector Text Document\n\nType or paste plain text here to generate a searchable PDF.';
+    setPlainOrMdText(sample);
+    setFiles([
+      new File([sample], isMd ? 'document.md' : 'document.txt', {
+        type: isMd ? 'text/markdown' : 'text/plain',
+      }),
+    ]);
     setProcessingState('configured');
   };
 
@@ -623,6 +689,9 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
     setSelectedSheets([]);
     setActivePreviewSheet('');
     setPptxInspection(null);
+    setSelectedPptxSlides([]);
+    setExtractedTables([]);
+    setTableWarnings([]);
     setRedactions([]);
     setAnnotations([]);
     setBlankAnalysis([]);
@@ -633,12 +702,18 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
 
   // Execute PDF / Conversion action
   const handleExecute = async () => {
-    if (files.length === 0 && tool.id !== 'html-to-pdf') return;
+    if (files.length === 0 && tool.id !== 'html-to-pdf' && tool.id !== 'text-to-pdf' && tool.id !== 'markdown-to-pdf') return;
     setErrorMessage(null);
     setProcessingState('processing');
 
     try {
-      const primaryFile = files[0] || new File([htmlCode], 'document.html', { type: 'text/html' });
+      const primaryFile =
+        files[0] ||
+        new File(
+          [tool.id === 'html-to-pdf' ? htmlCode : plainOrMdText],
+          tool.id === 'markdown-to-pdf' ? 'document.md' : tool.id === 'text-to-pdf' ? 'document.txt' : 'document.html',
+          { type: 'text/plain' }
+        );
       const baseName = primaryFile.name.replace(/\.[^/.]+$/, '');
 
       switch (tool.id) {
@@ -786,7 +861,8 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
           break;
         }
 
-        case 'jpg-to-pdf': {
+        case 'jpg-to-pdf':
+        case 'webp-to-pdf': {
           setStatusText('Converting images to PDF...');
           const pdfBlob = await convertJpgToPdf(files, {
             orientation: jpgOrientation,
@@ -900,12 +976,83 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
 
         case 'powerpoint-to-pdf': {
           setStatusText('Extracting and rendering PowerPoint slides...');
-          const pdfBlob = await convertPowerPointToPdf(primaryFile, (cur, tot) => {
-            setProgressDetail(`Rendering slide ${cur} of ${tot}`);
+          const pdfBlob = await convertPowerPointToPdf(primaryFile, {
+            slideNumbers: selectedPptxSlides.length > 0 ? selectedPptxSlides : undefined,
+            onProgress: (cur, tot) => setProgressDetail(`Rendering slide ${cur} of ${tot}`),
           });
           setResult({
             blob: pdfBlob,
             filename: `${baseName}.pdf`,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'pdf-to-word': {
+          setStatusText('Reconstructing DOCX document...');
+          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
+          const wordRes = await convertPdfToWord(primaryFile, {
+            enableOcrFallback: pdfToWordOcr,
+            ocrLanguage: pdfToWordLang,
+            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
+            onProgress: (cur, tot, status) => setProgressDetail(status || `Processing page ${cur} of ${tot}`),
+          });
+          setResult({
+            blob: wordRes.blob,
+            filename: wordRes.filename,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'pdf-to-excel': {
+          setStatusText(`Generating ${excelExportFormat.toUpperCase()} spreadsheet...`);
+          let tablesToExport = extractedTables;
+          if (tablesToExport.length === 0) {
+            const extRes = await extractTablesFromPdf(primaryFile, {
+              enableOcrFallback: ocrSearchablePdf,
+              ocrLanguage,
+              onProgress: (cur, tot, st) => setProgressDetail(st || `Scanning page ${cur} of ${tot}`),
+            });
+            tablesToExport = extRes.tables;
+          }
+          const exported = exportTablesToSpreadsheet(tablesToExport, excelExportFormat, baseName);
+          setResult({
+            blob: exported.blob,
+            filename: exported.filename,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'pdf-to-pptx': {
+          setStatusText('Converting PDF pages to PowerPoint slides...');
+          const selectedPageNums = pages.filter((p) => p.selected).map((p) => p.pageNumber);
+          const pptxRes = await convertPdfToPptx(primaryFile, {
+            mode: pdfToPptxMode,
+            aspectRatio: pdfToPptxAspect,
+            pageNumbers: selectedPageNums.length > 0 ? selectedPageNums : undefined,
+            onProgress: (cur, tot, st) => setProgressDetail(st || `Building slide ${cur} of ${tot}`),
+          });
+          setResult({
+            blob: pptxRes.blob,
+            filename: pptxRes.filename,
+            downloadUrl: '',
+          });
+          break;
+        }
+
+        case 'text-to-pdf':
+        case 'markdown-to-pdf': {
+          setStatusText('Generating crisp vector PDF...');
+          const pdfBlob = await convertTextOrMarkdownToPdf(plainOrMdText, {
+            pageSize: textPageSize,
+            fontSize: textFontSize,
+            isMarkdown: tool.id === 'markdown-to-pdf',
+          });
+          setResult({
+            blob: pdfBlob,
+            filename: `${baseName || 'document'}.pdf`,
             downloadUrl: '',
           });
           break;
@@ -1128,7 +1275,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
             <div>
               <FileUpload tool={tool} onFilesSelected={handleFilesSelected} />
 
-              {/* Special quick action for HTML to PDF */}
+              {/* Special quick action for HTML / Text / Markdown to PDF */}
               {tool.id === 'html-to-pdf' && (
                 <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
                   <span className="text-xs text-secondary" style={{ marginRight: '0.5rem' }}>
@@ -1141,6 +1288,22 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                   >
                     <Code size={14} />
                     <span>Enter or Paste HTML Code</span>
+                  </button>
+                </div>
+              )}
+
+              {(tool.id === 'text-to-pdf' || tool.id === 'markdown-to-pdf') && (
+                <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+                  <span className="text-xs text-secondary" style={{ marginRight: '0.5rem' }}>
+                    Don't have a file handy?
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleStartWithTextOrMd}
+                  >
+                    <FileText size={14} />
+                    <span>Type or Paste {tool.id === 'markdown-to-pdf' ? 'Markdown' : 'Text'}</span>
                   </button>
                 </div>
               )}
@@ -1159,8 +1322,8 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
             <div className="workspace-configured-layout">
               {/* Left Panel: Preview or File List */}
               <div className="workspace-preview-panel">
-                {/* Multi-file list for Merge or JPG-to-PDF */}
-                {(tool.id === 'merge' || tool.id === 'jpg-to-pdf') && (
+                {/* Multi-file list for Merge or JPG/WebP-to-PDF */}
+                {(tool.id === 'merge' || tool.id === 'jpg-to-pdf' || tool.id === 'webp-to-pdf') && (
                   <div className="file-list-group">
                     <div className="flex items-center justify-between" style={{ marginBottom: '0.5rem' }}>
                       <span className="form-label">
@@ -1187,7 +1350,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     {files.map((file, idx) => (
                       <div key={`${file.name}-${idx}`} className="file-list-item">
                         <div className="file-item-left">
-                          {tool.id === 'jpg-to-pdf' ? (
+                          {tool.id === 'jpg-to-pdf' || tool.id === 'webp-to-pdf' ? (
                             <FileImage size={20} className="file-item-icon" />
                           ) : (
                             <FileText size={20} className="file-item-icon" />
@@ -1240,6 +1403,8 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                     tool.id === 'pdf-to-png' ||
                     tool.id === 'pdf-to-webp' ||
                     tool.id === 'pdf-to-text' ||
+                    tool.id === 'pdf-to-word' ||
+                    tool.id === 'pdf-to-pptx' ||
                     tool.id === 'ocr-pdf' ||
                     tool.id === 'grayscale-pdf' ||
                     tool.id === 'remove-blank-pages') && (
@@ -1255,6 +1420,8 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                           {(tool.id === 'pdf-to-png' ||
                             tool.id === 'pdf-to-webp' ||
                             tool.id === 'pdf-to-text' ||
+                            tool.id === 'pdf-to-word' ||
+                            tool.id === 'pdf-to-pptx' ||
                             tool.id === 'ocr-pdf') &&
                             ` — Processing ${pages.filter((p) => p.selected).length} of ${pageCount} pages`}
                         </span>
@@ -1915,7 +2082,7 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                         <div className="file-item-details">
                           <span className="file-item-name">{files[0]?.name}</span>
                           <span className="file-item-size">
-                            {formatBytes(files[0]?.size || 0)} • {pptxInspection.slideCount} slides
+                            {formatBytes(files[0]?.size || 0)} • {selectedPptxSlides.length} of {pptxInspection.slideCount} slides selected
                           </span>
                         </div>
                       </div>
@@ -1929,41 +2096,174 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                       </button>
                     </div>
 
+                    {pptxInspection.unsupportedWarnings.length > 0 && (
+                      <div className="conversion-hint-box" style={{ marginBottom: '1rem', backgroundColor: '#fef7e0', borderColor: '#feefc3', color: '#b06000' }}>
+                        <strong>Presentation Notes:</strong>
+                        <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
+                          {pptxInspection.unsupportedWarnings.map((w, wi) => (
+                            <li key={wi}>{w}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <span className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
-                      Extracted Presentation Slides ({pptxInspection.slideCount})
+                      Select Presentation Slides ({pptxInspection.slideCount})
                     </span>
 
                     <div className="doc-preview-box">
-                      {pptxInspection.slides.map((s) => (
-                        <div
-                          key={s.slideNumber}
-                          style={{
-                            padding: '12px',
-                            borderBottom: '1px solid #e8eaed',
-                            display: 'flex',
-                            gap: '12px',
-                          }}
-                        >
-                          <span
+                      {pptxInspection.slides.map((s) => {
+                        const checked = selectedPptxSlides.includes(s.slideNumber);
+                        return (
+                          <label
+                            key={s.slideNumber}
                             style={{
-                              fontWeight: 700,
-                              color: '#1a73e8',
-                              fontSize: '13px',
-                              minWidth: '55px',
+                              padding: '12px',
+                              borderBottom: '1px solid #e8eaed',
+                              display: 'flex',
+                              gap: '12px',
+                              alignItems: 'flex-start',
+                              cursor: 'pointer',
                             }}
                           >
-                            Slide {s.slideNumber}
-                          </span>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600, color: '#202124', fontSize: '14px' }}>
-                              {s.title}
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedPptxSlides((prev) => [...prev, s.slideNumber].sort((a, b) => a - b));
+                                } else {
+                                  setSelectedPptxSlides((prev) => prev.filter((n) => n !== s.slideNumber));
+                                }
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontWeight: 700,
+                                color: '#1a73e8',
+                                fontSize: '13px',
+                                minWidth: '55px',
+                              }}
+                            >
+                              Slide {s.slideNumber}
+                            </span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, color: '#202124', fontSize: '14px' }}>
+                                {s.title}
+                              </div>
+                              <div style={{ color: '#5f6368', fontSize: '12px', marginTop: '4px' }}>
+                                {s.paragraphs.length} paragraph(s) • {s.imageUrls.length} image(s)
+                              </div>
                             </div>
-                            <div style={{ color: '#5f6368', fontSize: '12px', marginTop: '4px' }}>
-                              {s.paragraphs.length} paragraph(s) • {s.imageUrls.length} image(s)
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* PDF to Excel / CSV: Editable Extracted Tables Preview */}
+                {tool.id === 'pdf-to-excel' && (
+                  <div>
+                    <div className="flex items-center justify-between" style={{ marginBottom: '0.75rem' }}>
+                      <span className="form-label">
+                        Extracted Tables ({extractedTables.length}) — Click any cell to edit manually
+                      </span>
+                    </div>
+
+                    {tableWarnings.length > 0 && (
+                      <div className="conversion-hint-box" style={{ marginBottom: '1rem', backgroundColor: '#fef7e0', borderColor: '#feefc3', color: '#b06000' }}>
+                        {tableWarnings.map((w, idx) => (
+                          <div key={idx}>{w}</div>
+                        ))}
+                      </div>
+                    )}
+
+                    {isExtractingTables ? (
+                      <div style={{ padding: '2rem', textAlign: 'center', color: '#5f6368' }}>
+                        Scanning document coordinates for tables...
+                      </div>
+                    ) : extractedTables.length === 0 ? (
+                      <div className="conversion-hint-box">
+                        No structured tables detected yet. Click Export Spreadsheet to attempt full-document table extraction, or enable OCR fallback for scanned tables.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        {extractedTables.map((tbl, tblIdx) => (
+                          <div key={tbl.id} className="doc-preview-box" style={{ overflowX: 'auto' }}>
+                            <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '8px', color: '#1a73e8' }}>
+                              {tbl.title} ({tbl.source === 'ocr' ? 'OCR Extraction' : 'Digital Text'})
                             </div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                              <tbody>
+                                {tbl.rows.map((row, rIdx) => {
+                                  const isLowConf = tbl.lowConfidenceRows.includes(rIdx);
+                                  return (
+                                    <tr
+                                      key={rIdx}
+                                      style={{ backgroundColor: isLowConf ? '#fef7e0' : 'transparent' }}
+                                      title={isLowConf ? 'Low-confidence extraction row — verify manually' : undefined}
+                                    >
+                                      {row.map((cell, cIdx) => (
+                                        <td key={cIdx} style={{ border: '1px solid #dadce0', padding: '2px' }}>
+                                          <input
+                                            type="text"
+                                            value={cell}
+                                            aria-label={`Table ${tblIdx + 1} row ${rIdx + 1} column ${cIdx + 1}`}
+                                            style={{
+                                              width: '100%',
+                                              border: 'none',
+                                              background: 'transparent',
+                                              padding: '4px 6px',
+                                              fontSize: '12px',
+                                            }}
+                                            onChange={(e) => {
+                                              const nextVal = e.target.value;
+                                              setExtractedTables((prev) =>
+                                                prev.map((t, ti) =>
+                                                  ti !== tblIdx
+                                                    ? t
+                                                    : {
+                                                        ...t,
+                                                        rows: t.rows.map((r, ri) =>
+                                                          ri !== rIdx
+                                                            ? r
+                                                            : r.map((cv, ci) => (ci === cIdx ? nextVal : cv))
+                                                        ),
+                                                      }
+                                                )
+                                              );
+                                            }}
+                                          />
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Text / Markdown to PDF: Editor */}
+                {(tool.id === 'text-to-pdf' || tool.id === 'markdown-to-pdf') && (
+                  <div>
+                    <span className="form-label" style={{ marginBottom: '0.5rem', display: 'block' }}>
+                      {tool.id === 'markdown-to-pdf' ? 'Markdown Source' : 'Plain Text Content'}
+                    </span>
+                    <textarea
+                      className="html-editor-textarea"
+                      value={plainOrMdText}
+                      onChange={(e) => setPlainOrMdText(e.target.value)}
+                      placeholder="Enter or paste content..."
+                      aria-label={tool.id === 'markdown-to-pdf' ? 'Markdown source editor' : 'Plain text editor'}
+                    />
+                    <div className="conversion-hint-box">
+                      Generates crisp, lightweight vector PDF text locally using standard fonts.
                     </div>
                   </div>
                 )}
@@ -2515,8 +2815,8 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                   </div>
                 )}
 
-                {/* JPG to PDF Configuration */}
-                {tool.id === 'jpg-to-pdf' && (
+                {/* JPG / WebP to PDF Configuration */}
+                {(tool.id === 'jpg-to-pdf' || tool.id === 'webp-to-pdf') && (
                   <>
                     <div className="form-group">
                       <label className="form-label">Page Orientation</label>
@@ -2556,6 +2856,130 @@ export const ToolWorkspace: React.FC<ToolWorkspaceProps> = ({ tool, onBack }) =>
                         <option value={20}>Standard (20 pt)</option>
                         <option value={40}>Spacious (40 pt)</option>
                       </select>
+                    </div>
+                  </>
+                )}
+
+                {/* PDF to Word Configuration */}
+                {tool.id === 'pdf-to-word' && (
+                  <>
+                    <div className="form-group">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={pdfToWordOcr}
+                          onChange={(e) => setPdfToWordOcr(e.target.checked)}
+                        />
+                        <span className="form-label" style={{ marginBottom: 0 }}>
+                          OCR Fallback for Scanned Pages
+                        </span>
+                      </label>
+                    </div>
+                    {pdfToWordOcr && (
+                      <div className="form-group">
+                        <label className="form-label" htmlFor="pdf-word-ocr-lang">OCR Language</label>
+                        <select
+                          id="pdf-word-ocr-lang"
+                          className="form-select"
+                          value={pdfToWordLang}
+                          onChange={(e) => setPdfToWordLang(e.target.value as any)}
+                        >
+                          <option value="eng">English</option>
+                          <option value="hin">Hindi</option>
+                          <option value="spa">Spanish</option>
+                          <option value="fra">French</option>
+                          <option value="deu">German</option>
+                        </select>
+                      </div>
+                    )}
+                    <div className="conversion-hint-box">
+                      Reconstructs editable DOCX headings, paragraphs, detected tables, and links. Intricate graphic layouts are simplified.
+                    </div>
+                  </>
+                )}
+
+                {/* PDF to Excel / CSV Configuration */}
+                {tool.id === 'pdf-to-excel' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="excel-export-format">Export Format</label>
+                      <select
+                        id="excel-export-format"
+                        className="form-select"
+                        value={excelExportFormat}
+                        onChange={(e) => setExcelExportFormat(e.target.value as 'xlsx' | 'csv')}
+                      >
+                        <option value="xlsx">Excel Workbook (.xlsx)</option>
+                        <option value="csv">Comma-Separated (.csv)</option>
+                      </select>
+                    </div>
+                    <div className="conversion-hint-box">
+                      Click cells in the preview table to fix formatting before exporting. Rows highlighted in amber indicate low extraction confidence.
+                    </div>
+                  </>
+                )}
+
+                {/* PDF to PowerPoint Configuration */}
+                {tool.id === 'pdf-to-pptx' && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="pptx-conversion-mode">Slide Mode</label>
+                      <select
+                        id="pptx-conversion-mode"
+                        className="form-select"
+                        value={pdfToPptxMode}
+                        onChange={(e) => setPdfToPptxMode(e.target.value as PptxConversionMode)}
+                      >
+                        <option value="image-slides">High-Quality Image Slides (Exact Layout)</option>
+                        <option value="editable">Editable Text Reconstruction (Beta)</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="pptx-aspect-ratio">Aspect Ratio</label>
+                      <select
+                        id="pptx-aspect-ratio"
+                        className="form-select"
+                        value={pdfToPptxAspect}
+                        onChange={(e) => setPdfToPptxAspect(e.target.value as PptxAspectRatio)}
+                      >
+                        <option value="16:9">Widescreen (16:9)</option>
+                        <option value="4:3">Standard (4:3)</option>
+                        <option value="original">Original PDF Aspect</option>
+                      </select>
+                    </div>
+                    <div className="conversion-hint-box">
+                      {pdfToPptxMode === 'image-slides'
+                        ? 'Image Slides preserve exact appearance; slide text will be flattened into slide images.'
+                        : 'Editable mode extracts positioned text into PowerPoint text boxes; custom graphics and font metrics are simplified.'}
+                    </div>
+                  </>
+                )}
+
+                {/* Text / Markdown to PDF Configuration */}
+                {(tool.id === 'text-to-pdf' || tool.id === 'markdown-to-pdf') && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="text-pdf-pagesize">Page Size</label>
+                      <select
+                        id="text-pdf-pagesize"
+                        className="form-select"
+                        value={textPageSize}
+                        onChange={(e) => setTextPageSize(e.target.value as 'a4' | 'letter')}
+                      >
+                        <option value="a4">A4 (210 × 297 mm)</option>
+                        <option value="letter">Letter (8.5 × 11 in)</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" htmlFor="text-pdf-fontsize">Base Font Size ({textFontSize} pt)</label>
+                      <input
+                        id="text-pdf-fontsize"
+                        type="range"
+                        min={9}
+                        max={16}
+                        value={textFontSize}
+                        onChange={(e) => setTextFontSize(parseInt(e.target.value, 10))}
+                      />
                     </div>
                   </>
                 )}

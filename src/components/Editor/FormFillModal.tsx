@@ -279,7 +279,7 @@ export const FormFillModal: React.FC<FormFillModalProps> = ({
                               onChange={(e) => handleValueChange(field.name, e.target.checked)}
                               disabled={field.isReadOnly || isSaving}
                             />
-                            <span>{Boolean(val) ? 'Checked' : 'Unchecked'}</span>
+                            <span>{val ? 'Checked' : 'Unchecked'}</span>
                           </label>
                         )}
 

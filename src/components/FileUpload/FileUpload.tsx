@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { UploadCloud, ShieldCheck, AlertCircle } from 'lucide-react';
 import { ToolDefinition } from '../../types';
 import { isValidFileType } from '../../utils/file';
+import { validateFileSignature } from '../../utils/fileSecurity';
 import './FileUpload.css';
 
 interface FileUploadProps {
@@ -26,25 +27,28 @@ export const FileUpload: React.FC<FileUploadProps> = ({ tool, onFilesSelected })
     setIsDragOver(false);
   };
 
-  const processFileList = (fileList: FileList | null) => {
+  const processFileList = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     setErrorMessage(null);
 
     const validFiles: File[] = [];
-    const invalidNames: string[] = [];
+    const errors: string[] = [];
 
-    Array.from(fileList).forEach((file) => {
-      if (isValidFileType(file, tool.acceptedFileTypes)) {
+    for (const file of Array.from(fileList)) {
+      if (!isValidFileType(file, tool.acceptedFileTypes)) {
+        errors.push(`Invalid file format for "${file.name}". Supported: ${tool.acceptedFileTypes}`);
+        continue;
+      }
+      const sigCheck = await validateFileSignature(file, tool.acceptedFileTypes);
+      if (sigCheck.valid) {
         validFiles.push(file);
       } else {
-        invalidNames.push(file.name);
+        errors.push(sigCheck.reason || `Invalid or corrupted file content: "${file.name}"`);
       }
-    });
+    }
 
-    if (invalidNames.length > 0) {
-      setErrorMessage(
-        `Invalid file format for: ${invalidNames.slice(0, 2).join(', ')}. Supported: ${tool.acceptedFileTypes}`
-      );
+    if (errors.length > 0) {
+      setErrorMessage(errors[0]!);
     }
 
     if (validFiles.length > 0) {
@@ -85,15 +89,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({ tool, onFilesSelected })
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleButtonClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleButtonClick();
-          }
-        }}
-        aria-label="Upload files"
       >
         <input
           ref={fileInputRef}

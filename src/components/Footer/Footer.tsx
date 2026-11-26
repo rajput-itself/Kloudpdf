@@ -7,6 +7,7 @@ interface FooterProps {
   onOpenTerms?: () => void;
   onOpenAbout?: () => void;
   onOpenContact?: () => void;
+  onOpenFaq?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -15,6 +16,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenTerms,
   onOpenAbout,
   onOpenContact,
+  onOpenFaq,
 }) => {
   const currentYear = new Date().getFullYear();
 
@@ -75,6 +77,17 @@ export const Footer: React.FC<FooterProps> = ({
                     Contact & Feedback
                   </button>
                 </li>
+                {onOpenFaq && (
+                  <li>
+                    <button
+                      type="button"
+                      className="footer-link-btn"
+                      onClick={onOpenFaq}
+                    >
+                      FAQ & Capabilities
+                    </button>
+                  </li>
+                )}
               </ul>
             </div>
 

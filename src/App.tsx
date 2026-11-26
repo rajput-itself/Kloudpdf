@@ -43,28 +43,63 @@ const BatchWorkspace = lazy(() =>
   }))
 );
 
-const resolveToolId = (hash: string): ToolId | null => {
-  const rawHash = hash.replace(/^#\/?/, '');
-  if (rawHash === 'edit-pdf' || rawHash === 'edit') return 'edit-pdf';
-  if (rawHash === 'ocr-pdf' || rawHash === 'ocr') return 'ocr-pdf';
-  if (rawHash === 'redact-pdf' || rawHash === 'redact') return 'redact-pdf';
-  if (rawHash === 'compress-pdf' || rawHash === 'compress') return 'compress-pdf';
-  if (rawHash === 'batch-pdf' || rawHash === 'batch') return 'batch-pdf';
-  return TOOLS.some((t) => t.id === rawHash) ? (rawHash as ToolId) : null;
+const resolveRoute = (hash: string): { toolId: ToolId | null; isInvalid: boolean } => {
+  const rawHash = hash.replace(/^#\/?/, '').trim();
+  if (!rawHash || rawHash === 'tools' || rawHash === 'about' || rawHash === 'contact') {
+    return { toolId: null, isInvalid: false };
+  }
+  if (rawHash === 'edit-pdf' || rawHash === 'edit') return { toolId: 'edit-pdf', isInvalid: false };
+  if (rawHash === 'ocr-pdf' || rawHash === 'ocr') return { toolId: 'ocr-pdf', isInvalid: false };
+  if (rawHash === 'redact-pdf' || rawHash === 'redact') return { toolId: 'redact-pdf', isInvalid: false };
+  if (rawHash === 'compress-pdf' || rawHash === 'compress') return { toolId: 'compress-pdf', isInvalid: false };
+  if (rawHash === 'batch-pdf' || rawHash === 'batch') return { toolId: 'batch-pdf', isInvalid: false };
+  const exact = TOOLS.find((t) => t.id === rawHash);
+  if (exact) return { toolId: exact.id, isInvalid: false };
+  return { toolId: null, isInvalid: true };
 };
 
 export default function App() {
-  const [currentToolId, setCurrentToolId] = useState<ToolId | null>(() => {
-    return resolveToolId(window.location.hash);
+  const initialRoute = resolveRoute(window.location.hash);
+  const [currentToolId, setCurrentToolId] = useState<ToolId | null>(initialRoute.toolId);
+  const [isInvalidRoute, setIsInvalidRoute] = useState<boolean>(initialRoute.isInvalid);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      return localStorage.getItem('kloudpdf_theme') === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
   });
+  const [swUpdateReg, setSwUpdateReg] = useState<ServiceWorkerRegistration | null>(null);
 
   const [editorInitialFile, setEditorInitialFile] = useState<File | null>(null);
-  const [modalType, setModalType] = useState<'about' | 'contact' | 'privacy' | 'terms' | null>(null);
+  const [modalType, setModalType] = useState<'about' | 'contact' | 'privacy' | 'terms' | 'faq' | null>(null);
+
+  // Sync theme attribute on documentElement
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('kloudpdf_theme', theme);
+    } catch {
+      // Ignore storage failures
+    }
+  }, [theme]);
+
+  // Listen for Service Worker update notifications
+  useEffect(() => {
+    const onSwUpdate = (e: Event) => {
+      const ce = e as CustomEvent<ServiceWorkerRegistration>;
+      setSwUpdateReg(ce.detail);
+    };
+    window.addEventListener('kloudpdf-sw-update', onSwUpdate);
+    return () => window.removeEventListener('kloudpdf-sw-update', onSwUpdate);
+  }, []);
 
   // Synchronize hash with state for browser history and direct bookmarks
   useEffect(() => {
     const handleHashChange = () => {
-      setCurrentToolId(resolveToolId(window.location.hash));
+      const next = resolveRoute(window.location.hash);
+      setCurrentToolId(next.toolId);
+      setIsInvalidRoute(next.isInvalid);
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -73,20 +108,84 @@ export default function App() {
 
   const selectedTool = currentToolId ? TOOLS.find((t) => t.id === currentToolId) : null;
 
+  // Dynamic SEO title, description & canonical tags per active route
+  useEffect(() => {
+    const baseTitle = 'KloudPDF — PDF tools. Made simple.';
+    const defaultDesc =
+      'KloudPDF — Privacy-first, 100% browser-based PDF tools: edit, compress, merge, split, OCR, redact, convert, and batch process documents locally on your device.';
+
+    if (isInvalidRoute) {
+      document.title = 'Page Not Found — KloudPDF';
+    } else if (selectedTool) {
+      document.title = `${selectedTool.name} — KloudPDF`;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', `${selectedTool.description} Runs 100% locally in your browser.`);
+      const canonical = document.querySelector('link[rel="canonical"]');
+      if (canonical) canonical.setAttribute('href', `https://kloudpdf.com/#/${selectedTool.id}`);
+    } else {
+      document.title = baseTitle;
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', defaultDesc);
+      const canonical = document.querySelector('link[rel="canonical"]');
+      if (canonical) canonical.setAttribute('href', 'https://kloudpdf.com/');
+    }
+  }, [selectedTool, isInvalidRoute]);
+
   const handleSelectTool = (toolId: ToolId) => {
     window.location.hash = `#/${toolId}`;
     setCurrentToolId(toolId);
+    setIsInvalidRoute(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleNavigateHome = () => {
     window.location.hash = '';
     setCurrentToolId(null);
+    setIsInvalidRoute(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="app-layout">
+      <a href="#main-content" className="skip-to-content-link">
+        Skip to main content
+      </a>
+
+      {swUpdateReg && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            backgroundColor: '#1a73e8',
+            color: '#ffffff',
+            padding: '0.5rem 1rem',
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.75rem',
+          }}
+        >
+          <span>A new version of KloudPDF is ready.</span>
+          <button
+            type="button"
+            onClick={() => {
+              swUpdateReg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+              window.location.reload();
+            }}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#1a73e8',
+              padding: '0.2rem 0.65rem',
+              borderRadius: '4px',
+              fontWeight: 600,
+            }}
+          >
+            Update Now
+          </button>
+        </div>
+      )}
+
       {selectedTool?.id !== 'edit-pdf' &&
         selectedTool?.id !== 'ocr-pdf' &&
         selectedTool?.id !== 'redact-pdf' &&
@@ -96,11 +195,24 @@ export default function App() {
           onNavigateHome={handleNavigateHome}
           onOpenAbout={() => setModalType('about')}
           onOpenContact={() => setModalType('contact')}
+          onOpenFaq={() => setModalType('faq')}
+          theme={theme}
+          onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
         />
       )}
 
-      <main className="main-content">
-        {selectedTool ? (
+      <main id="main-content" className="main-content">
+        {isInvalidRoute ? (
+          <div style={{ textAlign: 'center', padding: '5rem 1.5rem', maxWidth: '540px', margin: '0 auto' }}>
+            <h1 style={{ fontSize: '2.25rem', fontWeight: 700, marginBottom: '0.75rem' }}>404 — Tool Not Found</h1>
+            <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>
+              The requested PDF tool route does not exist. Explore all available privacy-first tools from the KloudPDF home directory.
+            </p>
+            <button type="button" className="btn btn-primary btn-md" onClick={handleNavigateHome}>
+              Return to All PDF Tools
+            </button>
+          </div>
+        ) : selectedTool ? (
           selectedTool.id === 'edit-pdf' ? (
             <Suspense
               fallback={
@@ -265,13 +377,18 @@ export default function App() {
         )}
       </main>
 
-      {selectedTool?.id !== 'edit-pdf' && selectedTool?.id !== 'ocr-pdf' && selectedTool?.id !== 'redact-pdf' && (
+      {selectedTool?.id !== 'edit-pdf' &&
+        selectedTool?.id !== 'ocr-pdf' &&
+        selectedTool?.id !== 'redact-pdf' &&
+        selectedTool?.id !== 'compress-pdf' &&
+        selectedTool?.id !== 'batch-pdf' && (
         <Footer
           onNavigateHome={handleNavigateHome}
           onOpenAbout={() => setModalType('about')}
           onOpenContact={() => setModalType('contact')}
           onOpenPrivacy={() => setModalType('privacy')}
           onOpenTerms={() => setModalType('terms')}
+          onOpenFaq={() => setModalType('faq')}
         />
       )}
 
@@ -325,10 +442,10 @@ export default function App() {
           KloudPDF is architected from the ground up to respect user privacy:
         </p>
         <ul>
-          <li><strong>No File Storage:</strong> Files processed through KloudPDF are stored in temporary browser memory only.</li>
-          <li><strong>No Server Transmission:</strong> Files are never transmitted over the internet to any backend or remote servers.</li>
-          <li><strong>No Tracking Cookies:</strong> We do not track personal identifying information.</li>
-          <li><strong>Immediate Disposal:</strong> Once you complete an operation or close the tab, all memory references are garbage-collected.</li>
+          <li><strong>No Document Storage or Uploads:</strong> Files processed through KloudPDF stay strictly in temporary browser memory and are never uploaded to external servers.</li>
+          <li><strong>Non-Sensitive Local Preferences:</strong> Non-sensitive UI theme choices and custom batch preset settings (passwords stripped) are saved in browser localStorage.</li>
+          <li><strong>External Static Assets:</strong> Optional OCR language packs (Tesseract traineddata) and PDF CMap/font assets may be fetched from public CDNs when requested; no document bytes are ever sent.</li>
+          <li><strong>Immediate Disposal:</strong> Once you complete an operation or close the tab, temporary Blob URLs and memory buffers are released.</li>
         </ul>
       </Modal>
 
@@ -345,7 +462,27 @@ export default function App() {
           over all files and content manipulated with the tool.
         </p>
         <p>
-          The service is provided "as is", without warranty of any kind, express or implied.
+          The service is provided &quot;as is&quot;, without warranty of any kind, express or implied. Please review legal and privacy notices independently for regulated compliance workflows.
+        </p>
+      </Modal>
+
+      {/* FAQ & Technical Capabilities Modal */}
+      <Modal
+        isOpen={modalType === 'faq'}
+        onClose={() => setModalType(null)}
+        title="Frequently Asked Questions"
+      >
+        <h4>Does KloudPDF upload my files to a server?</h4>
+        <p>
+          No. All PDF editing, compression, OCR, conversion, encryption, and batch tasks run inside your local browser memory.
+        </p>
+        <h4>Which features work offline?</h4>
+        <p>
+          Once loaded, KloudPDF installs as a Progressive Web App (PWA). Core PDF tools work completely offline. Note that OCR language traineddata packs (e.g. Hindi or Spanish) and optional CMap character maps require an initial internet download the first time they are requested.
+        </p>
+        <h4>Why is PDF/A conversion deferred?</h4>
+        <p>
+          Strict ISO 19005 PDF/A archiving requires full ICC profile validation and complete font subsetting beyond pure JavaScript browser engines without large multi-megabyte WebAssembly validators.
         </p>
       </Modal>
     </div>

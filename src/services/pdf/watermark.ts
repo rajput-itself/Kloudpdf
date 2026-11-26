@@ -48,7 +48,7 @@ export async function addWatermarkToPdf(
     const page = pages[i]!;
     const { width, height } = page.getSize();
 
-    let x = (width - textWidth) / 2;
+    const x = (width - textWidth) / 2;
     let y = (height - textHeight) / 2;
 
     if (position === 'top') {
