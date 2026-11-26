@@ -74,7 +74,14 @@ export const Header: React.FC<HeaderProps> = ({
             <img
               src={`${import.meta.env.BASE_URL}kloudpdf-logo.png`}
               alt="KloudPDF — Complete PDF Solutions"
-              className="header-brand-logo"
+              className="header-brand-logo brand-logo-light"
+              width={162}
+              height={54}
+            />
+            <img
+              src={`${import.meta.env.BASE_URL}kloudpdf-logo-dark.png`}
+              alt="KloudPDF — Complete PDF Solutions"
+              className="header-brand-logo brand-logo-dark"
               width={162}
               height={54}
             />

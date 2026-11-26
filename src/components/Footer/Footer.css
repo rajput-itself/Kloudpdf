@@ -38,7 +38,6 @@
 .footer-brand {
   display: inline-block;
   margin-bottom: var(--space-2);
-  border-radius: var(--radius-md);
 }
 
 .footer-brand-logo {
@@ -46,11 +45,6 @@
   width: auto;
   display: block;
   object-fit: contain;
-}
-
-[data-theme='dark'] .footer-brand {
-  background-color: rgba(255, 255, 255, 0.96);
-  padding: 5px 12px;
 }
 
 .footer-brand-tagline {
