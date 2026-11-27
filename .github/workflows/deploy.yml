@@ -1,3 +1,4 @@
+
 name: KloudPDF CI/CD
 
 on:
@@ -120,8 +121,9 @@ jobs:
             -o ConnectTimeout=20 \
             -P "$SSH_PORT" \
             -r dist/. \
-            "$SSH_USERNAME@$SSH_HOST:/home/u942254885/domains/darkred-hyena-976478.hostingersite.com/public_html/"
+            "$SSH_USERNAME@$SSH_HOST:/home/u942254885/domains/kloudpdf.com/public_html/"
 
           echo "================================"
           echo "KloudPDF deployment successful!"
+          echo "Website: https://kloudpdf.com"
           echo "================================"
