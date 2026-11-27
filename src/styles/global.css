@@ -154,6 +154,23 @@ img, svg {
   border: 0;
 }
 
+/* Brand Logo Light / Dark Swap (higher specificity than component logo classes) */
+img.brand-logo-light {
+  display: block;
+}
+
+img.brand-logo-dark {
+  display: none;
+}
+
+[data-theme='dark'] img.brand-logo-light {
+  display: none;
+}
+
+[data-theme='dark'] img.brand-logo-dark {
+  display: block;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
