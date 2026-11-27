@@ -35,8 +35,12 @@ test.describe('KloudPDF End-to-End Functional & Security Tests', () => {
       await drawer.getByRole('button', { name: /Switch to light theme/i }).click();
       await page.keyboard.press('Escape');
     } else {
+      await expect(page.locator('.header-brand-logo:visible')).toHaveCount(1);
+      await expect(page.locator('.footer-brand-logo:visible')).toHaveCount(1);
       await page.locator('.header-actions').getByLabel(/Switch to dark theme/i).click();
       await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+      await expect(page.locator('.header-brand-logo:visible')).toHaveCount(1);
+      await expect(page.locator('.footer-brand-logo:visible')).toHaveCount(1);
       await page.locator('.header-actions').getByLabel(/Switch to light theme/i).click();
     }
 

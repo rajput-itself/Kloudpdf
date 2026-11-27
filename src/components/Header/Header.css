@@ -29,20 +29,7 @@
 .header-brand-logo {
   height: 44px;
   width: auto;
-  display: block;
   object-fit: contain;
-}
-
-.brand-logo-dark {
-  display: none;
-}
-
-[data-theme='dark'] .brand-logo-light {
-  display: none;
-}
-
-[data-theme='dark'] .brand-logo-dark {
-  display: block;
 }
 
 @media (max-width: 400px) {
